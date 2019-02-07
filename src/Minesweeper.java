@@ -5,9 +5,43 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
 
+enum Difficulty{
+    Easy(6,6),
+    Medium(9,20),
+    Hard(15,90);
+
+    private int size;
+    private int mineCount;
+    Difficulty(int size, int count){
+        this.size = size;
+        mineCount = count;
+    }
+    public static final String[] names=new String[values().length];
+    public static final String[] strings=new String[values().length];
+    static {
+        Difficulty[] values=values();
+        for(int i=0;i<values.length;i++){
+            names[i]=values[i].name();
+            strings[i]=values[i].toString();
+        }
+    }
+
+    @Override
+    public String toString() {
+                    //  e.g. "Easy (6x6 Grid, 6 Mines)"
+        return String.format("%s (%dx%d Grid, %d Mines)",
+            super.toString(), size, size, mineCount
+        );
+    }
+
+    public int getSize() {return size;}
+    public int getMineCount() {return mineCount;}
+
+}
+
 public class Minesweeper extends JPanel implements ActionListener {
 
-    public static final String BOMB = "*";
+    private static final String BOMB = "*";
     private  int gridSize = 15;
     private final int TILE_SIZE = 45;
     private final int GRID_BASE = 2;
@@ -16,12 +50,7 @@ public class Minesweeper extends JPanel implements ActionListener {
     protected Point mouseLoc;
     protected boolean isLeftMouse;
     
-    private static String[] difficulties = {
-            "Easy (6x6 Grid, 6 Mines)",
-            "Medium (9x9 Grid, 20 Mines)",
-            "Hard (15x15 Grid, 90 mines)"
-    };
-    private static String selectedDifficulty = "Easy";
+    private static Difficulty selectedDifficulty = Difficulty.Easy;
 
     private String[] openFields;
     private String[] closedFields;
@@ -79,15 +108,7 @@ public class Minesweeper extends JPanel implements ActionListener {
         Point gridCoords = mouseToGridCoords(xMouse, yMouse);
         int index = gridCoordsToArrayIndex(gridCoords.x, gridCoords.y);
 
-        if(selectedDifficulty.equals("Easy")) {
-            mineAmount = 6;
-        }
-        if(selectedDifficulty.equals("Medium")){
-            mineAmount = 20;
-        }
-        if(selectedDifficulty.equals("Hard")) {
-            mineAmount = 90;
-        }
+        mineAmount = selectedDifficulty.getMineCount();
 
         if (isLeftMouse) {
             if (closedFields[index].equals(BOMB)) {
@@ -125,15 +146,7 @@ public class Minesweeper extends JPanel implements ActionListener {
     }
 
     private void newGame(boolean restart) {
-        if(selectedDifficulty.equals("Easy")){
-            gridSize = 6;
-        }
-        if(selectedDifficulty.equals("Medium")){
-            gridSize = 9;
-        }
-        if(selectedDifficulty.equals("Hard")){
-            gridSize = 15;
-        }
+        gridSize = selectedDifficulty.getSize();
 
         countMarked = 0;
 //        if(frame == null){frame = new JFrame("Minesweeper 1.0");}
@@ -233,14 +246,7 @@ public class Minesweeper extends JPanel implements ActionListener {
         String[] newField = new String[gridSize * gridSize];
         Arrays.fill(newField, "");
 
-        mineAmount = 6;
-
-        if(selectedDifficulty.equals("Medium")){
-            mineAmount = 20;
-        }else if(selectedDifficulty.equals("Hard")){
-            mineAmount = 90;
-        }
-
+        mineAmount = selectedDifficulty.getMineCount();
         for (int i = 0; i < gridSize * gridSize; i++) {
             if(newField[i].equals("")){
                 newField[i] = (rand.nextInt(8) < 1 ? BOMB : "");
@@ -330,18 +336,19 @@ public class Minesweeper extends JPanel implements ActionListener {
 
     }
 
-    static String getFirstWord(Object obj){
-        String text = (String)obj;
+    private static String getFirstWord(Object obj){
+        String text = ""+obj;
         return text.substring(0,text.indexOf(" "));
     }
+
     public static void main(String[] args) {
         ImageIcon icon = new ImageIcon(Minesweeper.class.getResource("/MS.png"));
         ImageIcon explanationIcon = new ImageIcon(Minesweeper.class.getResource("/title.jpg"));
 
-        JComboBox<String> gameChooser = new JComboBox<>(difficulties);
-        gameChooser.addItemListener(e -> {
+        JComboBox<String> gameChooser = new JComboBox<>(Difficulty.strings);
+        gameChooser.addItemListener((ItemEvent e) -> {
             if(e.getStateChange()==ItemEvent.SELECTED){
-                Minesweeper.selectedDifficulty = getFirstWord(e.getItem());
+                selectedDifficulty = Difficulty.valueOf(getFirstWord(e.getItem()));
             }
         });
 
