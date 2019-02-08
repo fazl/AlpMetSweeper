@@ -66,7 +66,7 @@ public class Minesweeper extends JPanel implements ActionListener {
 
     private int countMarked = 0;
     
-    private static JFrame chooserWindow;
+    private static JFrame gameChooser;
     private static JFrame gameWindow = null;
 
 
@@ -189,7 +189,7 @@ public class Minesweeper extends JPanel implements ActionListener {
                 JOptionPane.ERROR_MESSAGE, icon) == JOptionPane.YES_OPTION) {
             newGame(true);
         } else {
-            chooserWindow.setVisible(true);
+            gameChooser.setVisible(true);
             gameWindow.dispose();
             isGameOver = false;
         }
@@ -205,7 +205,7 @@ public class Minesweeper extends JPanel implements ActionListener {
             newGame(true);
         }
         else{
-            chooserWindow.setVisible(true);
+            gameChooser.setVisible(true);
             gameWindow.dispose();
             isGameOver = false;
         }
@@ -346,16 +346,16 @@ public class Minesweeper extends JPanel implements ActionListener {
     }
 
     public static void main(String[] args) {
-        JComboBox<Difficulty> gameChooser = new JComboBox<>(Difficulty.values());
-        gameChooser.addItemListener((ItemEvent e) -> {
+        JComboBox<Difficulty> chooserCombo = new JComboBox<>(Difficulty.values());
+        chooserCombo.addItemListener((ItemEvent e) -> {
             if(e.getStateChange()==ItemEvent.SELECTED){
                 selectedDifficulty = (Difficulty)e.getItem();
             }
         });
 
         ImageIcon icon = new ImageIcon(Minesweeper.class.getResource("/MS.png"));
-        JButton start = new JButton("Start");
-        start.addActionListener(e -> {
+        JButton startButton = new JButton("Start");
+        startButton.addActionListener(e -> {
             Minesweeper game = new Minesweeper();
 
             game.newGame(false);
@@ -369,28 +369,28 @@ public class Minesweeper extends JPanel implements ActionListener {
             gameWindow.pack();
             gameWindow.setLocationRelativeTo(null);
             gameWindow.setVisible(true);
-            chooserWindow.setVisible(false);
+            gameChooser.setVisible(false);
 
         });
 
 
-        ImageIcon explanationIcon = new ImageIcon(Minesweeper.class.getResource("/title.jpg"));
-        JLabel explanation = new JLabel();
-        explanation.setIcon(explanationIcon);
-        explanation.setPreferredSize(new Dimension(300,120));
 
-        chooserWindow = new JFrame("Minesweeper 1.0");
-        chooserWindow.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        chooserWindow.setIconImage((icon.getImage()));
+        JLabel title = new JLabel();
+        title.setIcon(new ImageIcon(Minesweeper.class.getResource("/title.jpg")));
+        title.setPreferredSize(new Dimension(300,120));
 
-        chooserWindow.add("North", explanation);
-        chooserWindow.add("Center", gameChooser);
-        chooserWindow.add("East", start);
+        gameChooser = new JFrame("Minesweeper 1.0");
+        gameChooser.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+        gameChooser.setIconImage((icon.getImage()));
 
-        chooserWindow.pack();
-        chooserWindow.setSize(315,200);
-        chooserWindow.setLocationRelativeTo(null);
-        chooserWindow.setVisible(true);
+        gameChooser.add("North", title);
+        gameChooser.add("Center", chooserCombo);
+        gameChooser.add("East", startButton);
+
+        gameChooser.pack();
+        gameChooser.setSize(315,200);
+        gameChooser.setLocationRelativeTo(null);
+        gameChooser.setVisible(true);
     }
 }
 
