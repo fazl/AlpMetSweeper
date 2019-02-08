@@ -40,16 +40,51 @@ enum Difficulty{
 }
 
 class GameChooser extends JFrame{
+    GameChooser(String name, Minesweeper game){
+        super(name);
+        setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+        setIconImage( Minesweeper.gameIcon.getImage());
+
+        JLabel banner = new JLabel();
+        banner.setIcon(new ImageIcon(Minesweeper.class.getResource("/title.jpg")));
+        banner.setPreferredSize(new Dimension(300,120));
+
+        JComboBox<Difficulty> chooserCombo = new JComboBox<>(Difficulty.values());
+        chooserCombo.addItemListener((ItemEvent e) -> {
+            if(e.getStateChange()==ItemEvent.SELECTED){
+                Minesweeper.selectedDifficulty = (Difficulty)e.getItem();
+            }
+        });
+
+        JButton startButton = new JButton("Start");
+        startButton.addActionListener(e -> {
+            game.newGame(false);
+            setVisible(false);
+        });
+
+
+        add("North", banner);
+        add("Center", chooserCombo);
+        add("East", startButton);
+
+        pack();
+        setSize(315,200);
+        setLocationRelativeTo(null); //center in screen - call after size set!
+        setVisible(true);
+    }
 
 }
 
 public class Minesweeper extends JPanel implements ActionListener {
 
     private static final String BOMB = "*";
+    private static final String GAME_NAME = "Minesweeper 1.0";
+    static final ImageIcon gameIcon = new ImageIcon(Minesweeper.class.getResource("/MS.png"));
     private  int gridSize = 15;
     private final int TILE_SIZE = 45;
     private final int GRID_BASE = 2;
     private int BORDER = 2;
+    private GameChooser gameChooser;
 
     Point mouseLoc;
     boolean isLeftMouse;
@@ -65,8 +100,7 @@ public class Minesweeper extends JPanel implements ActionListener {
     private int[] mineDetectors;
 
     private int countMarked = 0;
-    
-    private static JFrame gameChooser;
+
     private static JFrame gameWindow = null;
 
 
@@ -76,6 +110,12 @@ public class Minesweeper extends JPanel implements ActionListener {
         addMouseListener(new NewMouseAdapter(this));
         addMouseMotionListener(new NewMouseMotionAdapter(this));
 
+        gameChooser = new GameChooser(GAME_NAME, this);
+
+        gameWindow = new JFrame(GAME_NAME);
+        gameWindow.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+        gameWindow.setIconImage(Minesweeper.gameIcon.getImage());
+        gameWindow.add("Center", this);
     }
 
 
@@ -149,12 +189,10 @@ public class Minesweeper extends JPanel implements ActionListener {
         repaint();
     }
 
-    private void newGame(boolean restart) {
+    void newGame(boolean restart) {
         gridSize = selectedDifficulty.getSize();
 
         countMarked = 0;
-//        if(gameWindow == null){gameWindow = new JFrame("Minesweeper 1.0");}
-        if (!restart) gameWindow = new JFrame("Minesweeper 1.0");
         openFields = new String[gridSize * gridSize];
         closedFields = new String[gridSize * gridSize];
         Arrays.fill(closedFields, "");
@@ -171,7 +209,10 @@ public class Minesweeper extends JPanel implements ActionListener {
         mineDetectors = findAdjacent(closedFields);
         isGameOver=false;
         mouseLoc=null;
-        repaint();
+        gameWindow.pack();
+//        repaint();
+        gameWindow.setLocationRelativeTo(null); //center window - must call after size set!
+        gameWindow.setVisible(true);
     }
 
     private void gameOver() {
@@ -346,51 +387,8 @@ public class Minesweeper extends JPanel implements ActionListener {
     }
 
     public static void main(String[] args) {
-        JComboBox<Difficulty> chooserCombo = new JComboBox<>(Difficulty.values());
-        chooserCombo.addItemListener((ItemEvent e) -> {
-            if(e.getStateChange()==ItemEvent.SELECTED){
-                selectedDifficulty = (Difficulty)e.getItem();
-            }
-        });
 
-        ImageIcon icon = new ImageIcon(Minesweeper.class.getResource("/MS.png"));
-        JButton startButton = new JButton("Start");
-        startButton.addActionListener(e -> {
-            Minesweeper game = new Minesweeper();
-
-            game.newGame(false);
-
-
-            gameWindow.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-            gameWindow.setIconImage((icon.getImage()));
-
-            gameWindow.add("Center", game);
-
-            gameWindow.pack();
-            gameWindow.setLocationRelativeTo(null);
-            gameWindow.setVisible(true);
-            gameChooser.setVisible(false);
-
-        });
-
-
-
-        JLabel title = new JLabel();
-        title.setIcon(new ImageIcon(Minesweeper.class.getResource("/title.jpg")));
-        title.setPreferredSize(new Dimension(300,120));
-
-        gameChooser = new JFrame("Minesweeper 1.0");
-        gameChooser.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        gameChooser.setIconImage((icon.getImage()));
-
-        gameChooser.add("North", title);
-        gameChooser.add("Center", chooserCombo);
-        gameChooser.add("East", startButton);
-
-        gameChooser.pack();
-        gameChooser.setSize(315,200);
-        gameChooser.setLocationRelativeTo(null);
-        gameChooser.setVisible(true);
+        Minesweeper game = new Minesweeper();
     }
 }
 
@@ -426,7 +424,7 @@ class NewMouseMotionAdapter extends MouseMotionAdapter {
                 game.mouseLoc = game.mouseToGridCoords(e.getX(), e.getY());
                 game.repaint();
         } catch (Exception a) {
-//            System.out.println(a);
+            a.printStackTrace();
         }
         super.mouseMoved(e);
     }
