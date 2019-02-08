@@ -52,7 +52,7 @@ class GameChooser extends JFrame {
         setIconImage(Minesweeper.gameIcon.getImage());
 
         JLabel banner = new JLabel();
-        banner.setIcon(new ImageIcon(Minesweeper.class.getResource("/title.jpg")));
+        banner.setIcon(Minesweeper.bannerIcon);
         banner.setPreferredSize(new Dimension(300, 120));
 
         JComboBox<Difficulty> chooserCombo = new JComboBox<>(Difficulty.values());
@@ -64,7 +64,7 @@ class GameChooser extends JFrame {
 
         JButton startButton = new JButton("Start");
         startButton.addActionListener(e -> {
-            game.newGame(false);
+            game.newGame();
             setVisible(false);
         });
 
@@ -76,16 +76,21 @@ class GameChooser extends JFrame {
         pack();
         setSize(315, 200);
         setLocationRelativeTo(null); //center in screen - call after size set!
-        setVisible(true);
     }
 
 }
 
 public class Minesweeper extends JPanel implements ActionListener {
 
+    static final ImageIcon bannerIcon = new ImageIcon(Minesweeper.class.getResource("/title.jpg"));
     static final ImageIcon gameIcon = new ImageIcon(Minesweeper.class.getResource("/MS.png"));
+    private static final ImageIcon gameOverIcon = new ImageIcon(Minesweeper.class.getResource("/gameover.png"));
+    private static final ImageIcon winnerIcon = new ImageIcon(Minesweeper.class.getResource("/youwon.gif"));
+
+
     private static final String BOMB = "*";
     private static final String GAME_NAME = "Minesweeper 1.0";
+    static final String OUTSIDE_GRID = "Ignore mouse outside grid";
     static Difficulty selectedDifficulty = Difficulty.Easy;
     private static JFrame gameWindow = null;
     private final int TILE_SIZE = 45;
@@ -107,18 +112,20 @@ public class Minesweeper extends JPanel implements ActionListener {
         addMouseListener(new NewMouseAdapter(this));
         addMouseMotionListener(new NewMouseMotionAdapter(this));
 
-        gameChooser = new GameChooser(GAME_NAME, this);
-
         gameWindow = new JFrame(GAME_NAME);
         gameWindow.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        gameWindow.setIconImage(Minesweeper.gameIcon.getImage());
+        gameWindow.setIconImage(gameIcon.getImage());
         gameWindow.add("Center", this);
+
+        gameChooser = new GameChooser(GAME_NAME, this);
+        gameChooser.setVisible(true);
     }
 
     public static void main(String[] args) {
         new Minesweeper();
     }
 
+    @Override
     public void actionPerformed(ActionEvent click) {
         if (click.getActionCommand().equals("Random")) {
             JOptionPane.showMessageDialog(this, JOptionPane.YES_NO_OPTION);
@@ -126,6 +133,7 @@ public class Minesweeper extends JPanel implements ActionListener {
         }
     }
 
+    @Override
     public Dimension getPreferredSize() {
         int d = TILE_SIZE * gridSize + 2 * GRID_BASE;
         return new Dimension(d, d);
@@ -134,7 +142,7 @@ public class Minesweeper extends JPanel implements ActionListener {
     Point mouseToGridCoords(double xMouse, double yMouse) {
         if (xMouse < GRID_BASE || gridSize * TILE_SIZE + GRID_BASE - BORDER < xMouse ||
             yMouse < GRID_BASE || gridSize * TILE_SIZE + GRID_BASE - BORDER < yMouse) {
-            throw new RuntimeException("Ignore mouse outside grid: ");
+            throw new RuntimeException(OUTSIDE_GRID);
         }
 
 
@@ -186,7 +194,7 @@ public class Minesweeper extends JPanel implements ActionListener {
         repaint();
     }
 
-    void newGame(boolean restart) {
+    void newGame() {
         gridSize = selectedDifficulty.getSize();
 
         countMarked = 0;
@@ -213,40 +221,47 @@ public class Minesweeper extends JPanel implements ActionListener {
     }
 
     private void gameOver() {
-        ImageIcon icon = new ImageIcon(getClass().getResource("/gameover.png"));
 
         isGameOver = true;
 
+        // Uncover remaning bombs
         for (int i = 0; i < closedFields.length; i++) {
             if (closedFields[i].equals(BOMB)) {
                 openFields[i] = BOMB;
             }
         }
         repaint();
-        if (JOptionPane.showConfirmDialog(null, "Game Over\nWanna play again?", "Game Over", JOptionPane.YES_NO_OPTION,
-            JOptionPane.ERROR_MESSAGE, icon) == JOptionPane.YES_OPTION) {
-            newGame(true);
-        } else {
-            gameChooser.setVisible(true);
-            gameWindow.dispose();
-            isGameOver = false;
-        }
+
+        int option = JOptionPane.showConfirmDialog(null,
+            "Game Over\nWanna play again?",
+            "Game Over",
+            JOptionPane.YES_NO_OPTION, JOptionPane.ERROR_MESSAGE,
+            gameOverIcon
+        );
+
+        restart(option == JOptionPane.YES_OPTION);
     }
 
     private void winner() {
-        ImageIcon icon = new ImageIcon(getClass().getResource("/youwon.gif"));
+        int option = JOptionPane.showConfirmDialog( null,
+            "Congratulations, You Won!\nWanna play again?",
+            "You Won",
+            JOptionPane.YES_NO_OPTION, JOptionPane.ERROR_MESSAGE,
+            winnerIcon
+        );
+        restart(option == JOptionPane.YES_OPTION);
+    }
 
-
-        if (JOptionPane.showConfirmDialog(null, "Congratulations, You Won!\nWanna play again?",
-            "You Won", JOptionPane.YES_NO_OPTION, JOptionPane.ERROR_MESSAGE, icon) == JOptionPane.YES_OPTION) {
-            newGame(true);
+    private void restart(boolean again){
+        if ( again) {
+            newGame();
         } else {
             gameChooser.setVisible(true);
             gameWindow.dispose();
             isGameOver = false;
         }
-
     }
+
 
     private Point arrayIndex2GridCoords(int index) {
         return new Point(index % gridSize, index / gridSize);
@@ -408,7 +423,9 @@ class NewMouseMotionAdapter extends MouseMotionAdapter {
             game.mouseLoc = game.mouseToGridCoords(e.getX(), e.getY());
             game.repaint();
         } catch (Exception a) {
-            a.printStackTrace();
+            if(!a.getMessage().equals(Minesweeper.OUTSIDE_GRID)) {
+                a.printStackTrace();
+            }
         }
         super.mouseMoved(e);
     }
