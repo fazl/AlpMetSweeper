@@ -5,14 +5,15 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
 
-enum Difficulty{
-    Easy(6,6),
-    Medium(9,20),
-    Hard(15,90);
+enum Difficulty {
+    Easy(6, 6),
+    Medium(9, 20),
+    Hard(15, 90);
 
     private int size;
     private int mineCount;
-    Difficulty(int size, int count){
+
+    Difficulty(int size, int count) {
         this.size = size;
         mineCount = count;
     }
@@ -28,31 +29,36 @@ enum Difficulty{
 
     @Override
     public String toString() {
-                    //  e.g. "Easy (6x6 Grid, 6 Mines)"
+        //  e.g. "Easy (6x6 Grid, 6 Mines)"
         return String.format("%s (%dx%d Grid, %d Mines)",
             super.toString(), size, size, mineCount
         );
     }
 
-    public int getSize() {return size;}
-    public int getMineCount() {return mineCount;}
+    public int getSize() {
+        return size;
+    }
+
+    public int getMineCount() {
+        return mineCount;
+    }
 
 }
 
-class GameChooser extends JFrame{
-    GameChooser(String name, Minesweeper game){
+class GameChooser extends JFrame {
+    GameChooser(String name, Minesweeper game) {
         super(name);
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        setIconImage( Minesweeper.gameIcon.getImage());
+        setIconImage(Minesweeper.gameIcon.getImage());
 
         JLabel banner = new JLabel();
         banner.setIcon(new ImageIcon(Minesweeper.class.getResource("/title.jpg")));
-        banner.setPreferredSize(new Dimension(300,120));
+        banner.setPreferredSize(new Dimension(300, 120));
 
         JComboBox<Difficulty> chooserCombo = new JComboBox<>(Difficulty.values());
         chooserCombo.addItemListener((ItemEvent e) -> {
-            if(e.getStateChange()==ItemEvent.SELECTED){
-                Minesweeper.selectedDifficulty = (Difficulty)e.getItem();
+            if (e.getStateChange() == ItemEvent.SELECTED) {
+                Minesweeper.selectedDifficulty = (Difficulty) e.getItem();
             }
         });
 
@@ -68,7 +74,7 @@ class GameChooser extends JFrame{
         add("East", startButton);
 
         pack();
-        setSize(315,200);
+        setSize(315, 200);
         setLocationRelativeTo(null); //center in screen - call after size set!
         setVisible(true);
     }
@@ -77,34 +83,25 @@ class GameChooser extends JFrame{
 
 public class Minesweeper extends JPanel implements ActionListener {
 
+    static final ImageIcon gameIcon = new ImageIcon(Minesweeper.class.getResource("/MS.png"));
     private static final String BOMB = "*";
     private static final String GAME_NAME = "Minesweeper 1.0";
-    static final ImageIcon gameIcon = new ImageIcon(Minesweeper.class.getResource("/MS.png"));
-    private  int gridSize = 15;
+    static Difficulty selectedDifficulty = Difficulty.Easy;
+    private static JFrame gameWindow = null;
     private final int TILE_SIZE = 45;
     private final int GRID_BASE = 2;
-    private int BORDER = 2;
-    private GameChooser gameChooser;
-
     Point mouseLoc;
     boolean isLeftMouse;
-    
-    static Difficulty selectedDifficulty = Difficulty.Easy;
-
+    private int gridSize = 15;
+    private int BORDER = 2;
+    private GameChooser gameChooser;
     private String[] openFields;
     private String[] closedFields;
     private ArrayList<Integer> bombIndexes = new ArrayList<>();
-
-
     private int mineAmount;
     private int[] mineDetectors;
-
     private int countMarked = 0;
-
-    private static JFrame gameWindow = null;
-
-
-    private boolean isGameOver=false;
+    private boolean isGameOver = false;
 
     private Minesweeper() {
         addMouseListener(new NewMouseAdapter(this));
@@ -118,10 +115,13 @@ public class Minesweeper extends JPanel implements ActionListener {
         gameWindow.add("Center", this);
     }
 
+    public static void main(String[] args) {
+        new Minesweeper();
+    }
 
     public void actionPerformed(ActionEvent click) {
         if (click.getActionCommand().equals("Random")) {
-            JOptionPane.showMessageDialog(this,JOptionPane.YES_NO_OPTION);
+            JOptionPane.showMessageDialog(this, JOptionPane.YES_NO_OPTION);
 
         }
     }
@@ -133,7 +133,7 @@ public class Minesweeper extends JPanel implements ActionListener {
 
     Point mouseToGridCoords(double xMouse, double yMouse) {
         if (xMouse < GRID_BASE || gridSize * TILE_SIZE + GRID_BASE - BORDER < xMouse ||
-                yMouse < GRID_BASE || gridSize * TILE_SIZE + GRID_BASE - BORDER < yMouse) {
+            yMouse < GRID_BASE || gridSize * TILE_SIZE + GRID_BASE - BORDER < yMouse) {
             throw new RuntimeException("Ignore mouse outside grid: ");
         }
 
@@ -162,27 +162,24 @@ public class Minesweeper extends JPanel implements ActionListener {
                     openNoMineFields(index);
                 } else {
                     closedFields[index] = "open";
-                    openFields[index] = mineDetectors[index]+"";
+                    openFields[index] = mineDetectors[index] + "";
                 }
             }
-        }
-        else {
+        } else {
             if (!closedFields[index].equals("open") && openFields[index].equals("")) {
                 openFields[index] = "X";
                 if (openFields[index].equals("X") && closedFields[index].equals(BOMB)) {
                     countMarked++;
                 }
-            }
-            else if (!closedFields[index].equals("open") && openFields[index].equals("X")) {
+            } else if (!closedFields[index].equals("open") && openFields[index].equals("X")) {
                 openFields[index] = "?";
                 if (openFields[index].equals("?") && closedFields[index].equals(BOMB)) {
                     countMarked--;
                 }
-            }
-            else if (!closedFields[index].equals("open") && openFields[index].equals("?")) {
+            } else if (!closedFields[index].equals("open") && openFields[index].equals("?")) {
                 openFields[index] = "";
             }
-            if(countMarked == mineAmount && !isGameOver){
+            if (countMarked == mineAmount && !isGameOver) {
                 winner();
             }
         }
@@ -197,7 +194,7 @@ public class Minesweeper extends JPanel implements ActionListener {
         closedFields = new String[gridSize * gridSize];
         Arrays.fill(closedFields, "");
         Arrays.fill(openFields, "");
-        closedFields=placeRandomMines();
+        closedFields = placeRandomMines();
         bombIndexes.clear();
         for (int i = 0; i < closedFields.length; i++) {
             if (closedFields[i].equals(BOMB)) {
@@ -205,10 +202,10 @@ public class Minesweeper extends JPanel implements ActionListener {
             }
         }
 
-        mineDetectors=new int[gridSize * gridSize];
+        mineDetectors = new int[gridSize * gridSize];
         mineDetectors = findAdjacent(closedFields);
-        isGameOver=false;
-        mouseLoc=null;
+        isGameOver = false;
+        mouseLoc = null;
         gameWindow.pack();
 //        repaint();
         gameWindow.setLocationRelativeTo(null); //center window - must call after size set!
@@ -218,16 +215,16 @@ public class Minesweeper extends JPanel implements ActionListener {
     private void gameOver() {
         ImageIcon icon = new ImageIcon(getClass().getResource("/gameover.png"));
 
-        isGameOver=true;
+        isGameOver = true;
 
-        for (int i=0; i<closedFields.length; i++) {
+        for (int i = 0; i < closedFields.length; i++) {
             if (closedFields[i].equals(BOMB)) {
-                openFields[i]= BOMB;
+                openFields[i] = BOMB;
             }
         }
         repaint();
         if (JOptionPane.showConfirmDialog(null, "Game Over\nWanna play again?", "Game Over", JOptionPane.YES_NO_OPTION,
-                JOptionPane.ERROR_MESSAGE, icon) == JOptionPane.YES_OPTION) {
+            JOptionPane.ERROR_MESSAGE, icon) == JOptionPane.YES_OPTION) {
             newGame(true);
         } else {
             gameChooser.setVisible(true);
@@ -240,12 +237,10 @@ public class Minesweeper extends JPanel implements ActionListener {
         ImageIcon icon = new ImageIcon(getClass().getResource("/youwon.gif"));
 
 
-
         if (JOptionPane.showConfirmDialog(null, "Congratulations, You Won!\nWanna play again?",
-                "You Won", JOptionPane.YES_NO_OPTION, JOptionPane.ERROR_MESSAGE, icon) == JOptionPane.YES_OPTION) {
+            "You Won", JOptionPane.YES_NO_OPTION, JOptionPane.ERROR_MESSAGE, icon) == JOptionPane.YES_OPTION) {
             newGame(true);
-        }
-        else{
+        } else {
             gameChooser.setVisible(true);
             gameWindow.dispose();
             isGameOver = false;
@@ -271,14 +266,14 @@ public class Minesweeper extends JPanel implements ActionListener {
                 for (int i = -1; i < 2; i++) {
                     try {
                         if (!closedFields[index + range + i].equals(BOMB)
-                                && index / gridSize * gridSize + gridSize > (index + i)
-                                && index / gridSize * gridSize <= (index + i)) {
+                            && index / gridSize * gridSize + gridSize > (index + i)
+                            && index / gridSize * gridSize <= (index + i)) {
                             adjacents[index + range + i] += 1;
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
-                        System.out.printf("closedFields[%d] but length=%d\n",(index + range + i), closedFields.length );
-                        System.out.printf("index=%d,range=%d,i=%d\n",index, range, i);
+                        System.out.printf("closedFields[%d] but length=%d\n", (index + range + i), closedFields.length);
+                        System.out.printf("index=%d,range=%d,i=%d\n", index, range, i);
                     }
                 }
             }
@@ -293,16 +288,16 @@ public class Minesweeper extends JPanel implements ActionListener {
 
         mineAmount = selectedDifficulty.getMineCount();
         for (int i = 0; i < gridSize * gridSize; i++) {
-            if(newField[i].equals("")){
+            if (newField[i].equals("")) {
                 newField[i] = (rand.nextInt(8) < 1 ? BOMB : "");
-                if(newField[i].equals(BOMB)){
+                if (newField[i].equals(BOMB)) {
                     mineAmount--;
                 }
             }
-            if(mineAmount != 0 && i == (gridSize * gridSize) - 1 ){
+            if (mineAmount != 0 && i == (gridSize * gridSize) - 1) {
                 i = 0;
             }
-            if(mineAmount == 0){
+            if (mineAmount == 0) {
                 break;
             }
         }
@@ -318,9 +313,9 @@ public class Minesweeper extends JPanel implements ActionListener {
             for (int i = -1; i < 2; i++) {
                 try {
                     if (!closedFields[index + range + i].equals(BOMB)
-                            && !closedFields[index + range + i].equals("open")
-                            && (arrayIndex2GridCoords(index).y + 1) * gridSize > index + i
-                            && (arrayIndex2GridCoords(index).y) * gridSize <= index + i) {
+                        && !closedFields[index + range + i].equals("open")
+                        && (arrayIndex2GridCoords(index).y + 1) * gridSize > index + i
+                        && (arrayIndex2GridCoords(index).y) * gridSize <= index + i) {
                         if (mineDetectors[index + range + i] == 0) {
                             closedFields[index + range + i] = "open";
                             openFields[index + range + i] = " ";
@@ -337,7 +332,6 @@ public class Minesweeper extends JPanel implements ActionListener {
 
         }
     }
-
 
     @Override
     public void paint(Graphics g) {
@@ -356,7 +350,7 @@ public class Minesweeper extends JPanel implements ActionListener {
         int topLeftCornerY = yTile * TILE_SIZE + (GRID_BASE + BORDER);
 
 
-        if (closedFields[gridCoordsToArrayIndex(xTile, yTile)].equals("open"))  {
+        if (closedFields[gridCoordsToArrayIndex(xTile, yTile)].equals("open")) {
             g.setColor(Color.LIGHT_GRAY);
             g.fillRect(topLeftCornerX, topLeftCornerY, RECT_SIZE, RECT_SIZE);
         } else {
@@ -379,16 +373,6 @@ public class Minesweeper extends JPanel implements ActionListener {
         g.drawString(openFields[gridCoordsToArrayIndex(xTile, yTile)], topLeftCornerX + TILE_SIZE / 2 - 6, topLeftCornerY + TILE_SIZE / 2 + 5);
 //        g.drawString(mineDetectors[gridCoordsToArrayIndex(xTile, yTile)] + "", topLeftCornerX + TILE_SIZE / 2, topLeftCornerY + TILE_SIZE / 2);
 
-    }
-
-    private static String getFirstWord(Object obj){
-        String text = ""+obj;
-        return text.substring(0,text.indexOf(" "));
-    }
-
-    public static void main(String[] args) {
-
-        Minesweeper game = new Minesweeper();
     }
 }
 
@@ -421,8 +405,8 @@ class NewMouseMotionAdapter extends MouseMotionAdapter {
     @Override
     public void mouseMoved(MouseEvent e) {
         try {
-                game.mouseLoc = game.mouseToGridCoords(e.getX(), e.getY());
-                game.repaint();
+            game.mouseLoc = game.mouseToGridCoords(e.getX(), e.getY());
+            game.repaint();
         } catch (Exception a) {
             a.printStackTrace();
         }
