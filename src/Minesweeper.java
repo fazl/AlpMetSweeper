@@ -16,15 +16,15 @@ enum Difficulty{
         this.size = size;
         mineCount = count;
     }
-    public static final String[] names=new String[values().length];
-    public static final String[] strings=new String[values().length];
-    static {
-        Difficulty[] values=values();
-        for(int i=0;i<values.length;i++){
-            names[i]=values[i].name();
-            strings[i]=values[i].toString();
-        }
-    }
+//    public static final String[] names=new String[values().length];
+//    public static final String[] strings=new String[values().length];
+//    static {
+//        Difficulty[] values=values();
+//        for(int i=0;i<values.length;i++){
+//            names[i]=values[i].name();
+//            strings[i]=values[i].toString();
+//        }
+//    }
 
     @Override
     public String toString() {
@@ -54,7 +54,7 @@ public class Minesweeper extends JPanel implements ActionListener {
     Point mouseLoc;
     boolean isLeftMouse;
     
-    private static Difficulty selectedDifficulty = Difficulty.Easy;
+    static Difficulty selectedDifficulty = Difficulty.Easy;
 
     private String[] openFields;
     private String[] closedFields;
@@ -346,10 +346,10 @@ public class Minesweeper extends JPanel implements ActionListener {
     }
 
     public static void main(String[] args) {
-        JComboBox<String> gameChooser = new JComboBox<>(Difficulty.strings);
+        JComboBox<Difficulty> gameChooser = new JComboBox<>(Difficulty.values());
         gameChooser.addItemListener((ItemEvent e) -> {
             if(e.getStateChange()==ItemEvent.SELECTED){
-                selectedDifficulty = Difficulty.valueOf(getFirstWord(e.getItem()));
+                selectedDifficulty = (Difficulty)e.getItem();
             }
         });
 
