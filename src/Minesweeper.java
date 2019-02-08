@@ -196,13 +196,13 @@ public class Minesweeper extends JPanel implements ActionListener {
 
     void newGame() {
         gridSize = selectedDifficulty.getSize();
-
+        mineAmount = selectedDifficulty.getMineCount();
         countMarked = 0;
         openFields = new String[gridSize * gridSize];
         closedFields = new String[gridSize * gridSize];
-        Arrays.fill(closedFields, "");
         Arrays.fill(openFields, "");
-        closedFields = placeRandomMines();
+        placeRandomMines(closedFields);
+
         bombIndexes.clear();
         for (int i = 0; i < closedFields.length; i++) {
             if (closedFields[i].equals(BOMB)) {
@@ -296,27 +296,59 @@ public class Minesweeper extends JPanel implements ActionListener {
 
     }
 
-    private String[] placeRandomMines() {
+    private void placeRandomMines(String[] mineField) {
         Random rand = new Random();
-        String[] newField = new String[gridSize * gridSize];
-        Arrays.fill(newField, "");
+        Arrays.fill(mineField, "");
 
-        mineAmount = selectedDifficulty.getMineCount();
-        for (int i = 0; i < gridSize * gridSize; i++) {
-            if (newField[i].equals("")) {
-                newField[i] = (rand.nextInt(8) < 1 ? BOMB : "");
-                if (newField[i].equals(BOMB)) {
-                    mineAmount--;
+        final int N = gridSize*gridSize;
+
+        if(N <= mineAmount){
+            String error = String.format("mineAmount: %d and only %d squares :(", mineAmount, N);
+            System.err.println(error);
+            throw new IllegalStateException(error);
+        }
+
+        final int mineAmountOrig = mineAmount;
+
+//        // Takes about 800 iters to lay 90 mines
+//        int attempts = 0;
+//        for (int i = 0; i < N; i++) {
+//            ++attempts;
+//            if (mineField[i].isEmpty() && rand.nextInt(8) < 1) {
+//                mineField[i] = BOMB;
+//                if (--mineAmount == 0) {
+//                    System.out.printf("Success: %d mines laid in %d iterations\n", mineAmountOrig, attempts);
+//                    break;
+//                }
+//            }
+//            if (mineAmount != 0 && i == (gridSize * gridSize) - 1) {
+//                i = 0;
+//            }
+//        }
+
+        // Takes about 100 iters to lay 90 mines
+        for(int z = 1; ; ++z ){
+            System.out.printf("Seed minefield iter: %d (outstanding %d mines)..  ", z, mineAmount);
+            int row = rand.nextInt(gridSize);
+            int col = rand.nextInt(gridSize);
+            int index = row*gridSize + col;
+            if(mineField[index].isEmpty()){
+                mineField[index] = BOMB;
+                System.out.printf("Placed bomb at (%d, %d)\n", row, col);
+                if (--mineAmount <= 0) {
+                    System.out.printf("Success: %d mines laid in %d iterations\n", mineAmountOrig, z);
+                    break;
                 }
+            }else{
+                System.out.printf("\nAlready occupied: (%d, %d)\n", row, col);
             }
-            if (mineAmount != 0 && i == (gridSize * gridSize) - 1) {
-                i = 0;
-            }
-            if (mineAmount == 0) {
+            if( 1000_000 < z ){
+                System.err.printf("Failed to lay all mines after %d attempts!\n", z);
+                System.err.printf("Quitting after %d mines laid!\n", mineAmountOrig-mineAmount);
                 break;
             }
         }
-        return newField;
+
     }
 
     private void openNoMineFields(int index) {
