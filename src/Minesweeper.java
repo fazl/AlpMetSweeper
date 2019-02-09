@@ -1,4 +1,6 @@
 import javax.swing.*;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.*;
@@ -8,7 +10,8 @@ enum NewGameOption {SameAgain, Menu, Quit }
 enum Difficulty {
     Easy(6, 6),
     Medium(9, 20),
-    Hard(15, 90);
+    Hard(15, 90),
+    Custom (-1, -1);
 
     private int size;
     private int mineCount;
@@ -55,10 +58,25 @@ class GameChooser extends JFrame {
         banner.setIcon(Minesweeper.bannerIcon);
         banner.setPreferredSize(new Dimension(300, 120));
 
+        JSlider gridSizeSlider = new JSlider(5,100,10);
+        gridSizeSlider.setMajorTickSpacing(20);
+        gridSizeSlider.setPaintLabels(true);
+        gridSizeSlider.addChangeListener(
+            e -> System.out.printf("gridSize changed to %d\n",gridSizeSlider.getValue())
+        );
+        gridSizeSlider.setEnabled(false);
+
         JComboBox<Difficulty> chooserCombo = new JComboBox<>(Difficulty.values());
         chooserCombo.addItemListener((ItemEvent e) -> {
             if (e.getStateChange() == ItemEvent.SELECTED) {
-                Minesweeper.selectedDifficulty = (Difficulty) e.getItem();
+                if( Difficulty.Custom.equals( e.getItem()) ){
+                    //TODO: show advanced controls (size of grid, size of cells)
+                    gridSizeSlider.setEnabled(true);
+                }else{
+                    //TODO: hide advanced controls
+                    gridSizeSlider.setEnabled(false);
+                    Minesweeper.selectedDifficulty = (Difficulty) e.getItem();
+                }
             }
         });
 
@@ -72,6 +90,8 @@ class GameChooser extends JFrame {
         add("North", banner);
         add("Center", chooserCombo);
         add("East", startButton);
+        add("South", gridSizeSlider);
+
 
         pack();
         setSize(315, 200);
