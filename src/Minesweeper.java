@@ -108,6 +108,7 @@ public class Minesweeper extends JPanel implements ActionListener {
     private int countMarked = 0;
     private boolean isGameOver = false;
     private boolean bombsRevealed =false;
+    private String[] backupFields;
 
     private Minesweeper() {
         addMouseListener(new NewMouseAdapter(this));
@@ -180,7 +181,7 @@ public class Minesweeper extends JPanel implements ActionListener {
 
     private void onClickLeft(int index) {
         if (hiddenFields[index].equals(BOMB)) {
-            loser();
+            userLost();
         } else {
             if (mineDetectors[index] == 0) {
                 openCluster(index);
@@ -206,7 +207,7 @@ public class Minesweeper extends JPanel implements ActionListener {
             openFields[index] = "";
         }
         if (countMarked == mineAmount && !isGameOver) {
-            winner();
+            userWon();
         }
     }
 
@@ -223,7 +224,10 @@ public class Minesweeper extends JPanel implements ActionListener {
 
         countMarked = 0;
         openFields = new String[N];
+        backupFields = new String[N];
+        bombsRevealed = false;
         Arrays.fill(openFields, "");
+        Arrays.fill(backupFields, "");
 
         hiddenFields = new String[N];
         placeRandomMines(hiddenFields, bombIndexes);// TODO  disperesed vs clumped strategies ?
@@ -244,20 +248,25 @@ public class Minesweeper extends JPanel implements ActionListener {
         bombsRevealed = reveal;
         for (int i = 0; i < hiddenFields.length; i++) {
             if (hiddenFields[i].equals(BOMB)) {
-                openFields[i] = reveal ? BOMB : "";
+                if(reveal){
+                    backupFields[i] = openFields[i];
+                    openFields[i] = BOMB;
+                }else{
+                    openFields[i] = backupFields[i];
+                }
             }
         }
         repaint();
     }
 
-    private void loser() {
+    private void userLost() {
 
         isGameOver = true;
 
-        revealBombs(true);        // Uncover remaning bombs
+        revealBombs(true);        // Uncover remaining bombs
 
         int option = JOptionPane.showOptionDialog(null,
-            "Game Over\nWanna play again?",
+            "Better luck next time!\nPlay again?",
             "You Lost",
             JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE,
             gameOverIcon,
@@ -272,7 +281,7 @@ public class Minesweeper extends JPanel implements ActionListener {
         restart(option == 0);
     }
 
-    private void winner() {
+    private void userWon() {
         int option = JOptionPane.showOptionDialog( null,
             "Congratulations, You Won!\nWanna play again?",
             "You Won", //title
