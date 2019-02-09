@@ -6,9 +6,11 @@ import java.util.*;
 enum NewGameOption {SameAgain, Menu, Quit }
 
 enum Difficulty {
+    Trivial(4, 3),
     Easy(6, 6),
-    Medium(9, 20),
-    Hard(15, 90);
+    Medium(10, 20),
+    Fun(15, 40),
+    Hard(15,90);
 
     private int size;
     private int mineCount;
@@ -56,6 +58,7 @@ class GameChooser extends JFrame {
         banner.setPreferredSize(new Dimension(300, 120));
 
         JComboBox<Difficulty> chooserCombo = new JComboBox<>(Difficulty.values());
+        chooserCombo.setSelectedItem(Minesweeper.selectedDifficulty);
         chooserCombo.addItemListener((ItemEvent e) -> {
             if (e.getStateChange() == ItemEvent.SELECTED) {
                 Minesweeper.selectedDifficulty = (Difficulty) e.getItem();
@@ -91,7 +94,7 @@ public class Minesweeper extends JPanel implements ActionListener {
     private static final String BOMB = "*";
     private static final String GAME_NAME = "Minesweeper 1.0";
     static final String OUTSIDE_GRID = "Ignore mouse outside grid";
-    static Difficulty selectedDifficulty = Difficulty.Easy;
+    static Difficulty selectedDifficulty = Difficulty.Medium;
     private static JFrame gameWindow = null;
     private final int TILE_SIZE = 45;
     private final int GRID_BASE = 2;
@@ -166,8 +169,7 @@ public class Minesweeper extends JPanel implements ActionListener {
     }
 
     void onClick(boolean isLeftMouse, int xMouse, int yMouse) {
-        Point gridCoords = mouse2GridCoords(xMouse, yMouse);
-        int index = coordsToIndex(gridCoords.x, gridCoords.y);
+        int index = coordsToIndex( mouse2GridCoords(xMouse, yMouse) );
 
         mineAmount = selectedDifficulty.getMineCount();
 
@@ -332,7 +334,6 @@ public class Minesweeper extends JPanel implements ActionListener {
     private Set<Integer> getNeighbourIdxs(int index, Set<Integer> neighbours ){
         Point p = index2Coords(index);
         neighbours.clear();
-        ArrayList<Point> nPoints = new ArrayList<>(); //for debug output
         for (int dx = -1; dx<2; ++dx){
             for (int dy = -1; dy<2; ++dy){
                 try {
@@ -346,7 +347,6 @@ public class Minesweeper extends JPanel implements ActionListener {
                             );
                         }else {
                             neighbours.add(neighbourIndex);
-                            nPoints.add(neighbour);
                         }
                     }
                 }catch(IllegalArgumentException e){
@@ -354,7 +354,7 @@ public class Minesweeper extends JPanel implements ActionListener {
                 }
             }
         }
-        System.out.printf("%s neighbours: %s\nIdxs: %s", p, nPoints, neighbours);
+        System.out.printf("%s's neighbours: Idxs: %s\n", p, neighbours);
         return neighbours;
     }
 
@@ -384,8 +384,8 @@ public class Minesweeper extends JPanel implements ActionListener {
 //        }
 
         // Takes about 100 iters to lay 90 mines
-        for(int z = 1; ; ++z ){
-            System.out.printf("Seed minefield iter: %d (outstanding %d mines)..  ", z, mineAmount);
+        for(int attempt = 1; ; ++attempt ){
+            System.out.printf("Lay mines iter: %d (outstanding %d mines)..  ", attempt, mineAmount);
             int row = rand.nextInt(gridSize);
             int col = rand.nextInt(gridSize);
             int index = row*gridSize + col;
@@ -394,20 +394,20 @@ public class Minesweeper extends JPanel implements ActionListener {
                 bombIndexes.add(index);
                 System.out.printf("Placed bomb at (%d, %d)\n", col, row);
                 if (--mineAmount <= 0) {
-                    System.out.printf("Success: %d mines laid in %d iterations\n", mineAmountOrig, z);
+                    System.out.printf("Success: %d mines laid in %d iterations\n", mineAmountOrig, attempt);
                     break;
                 }
             }else{
                 System.out.printf("\nAlready occupied: (%d, %d)\n", col, row);
             }
-            if( 1000_000 < z ){
-                System.err.printf("Failed to lay all mines after %d attempts!\n", z);
+            if( 1000_000 < attempt ){
+                System.err.printf("Failed to lay all mines after %d attempts!\n", attempt);
                 System.err.printf("Quitting after %d mines laid!\n", mineAmountOrig-mineAmount);
                 break;
             }
         }
         Collections.sort(bombIndexes);  // why not
-        System.out.printf("\nRecorded %d mines:\n%s", bombIndexes.size(), bombIndexes);
+        System.out.printf("\nRecorded %d mines:\n%s\n", bombIndexes.size(), bombIndexes);
         if(bombIndexes.size() != mineAmountOrig){
             System.err.printf("Error: Expected %d (not %d) mines!\n",
                 mineAmountOrig,
