@@ -152,16 +152,16 @@ public class Minesweeper extends JPanel implements ActionListener {
         return new Point(gridX, gridY);
     }
 
-    private int gridCoords2ArrayIndex(int column, int row) {
+    private int coordsToIndex(int column, int row) {
         return column + gridSize * row;
     }
-    private int gridCoords2ArrayIndex(Point posColRow){
-        return gridCoords2ArrayIndex(posColRow.x, posColRow.y);
+    private int coordsToIndex(Point posColRow){
+        return coordsToIndex(posColRow.x, posColRow.y);
     }
 
     void onClick(boolean isLeftMouse, int xMouse, int yMouse) {
         Point gridCoords = mouse2GridCoords(xMouse, yMouse);
-        int index = gridCoords2ArrayIndex(gridCoords.x, gridCoords.y);
+        int index = coordsToIndex(gridCoords.x, gridCoords.y);
 
         mineAmount = selectedDifficulty.getMineCount();
 
@@ -279,7 +279,7 @@ public class Minesweeper extends JPanel implements ActionListener {
     }
 
 
-    private Point arrayIndex2GridCoords(int index) {
+    private Point index2Coords(int index) {
         return new Point(index % gridSize, index / gridSize);
     }
 
@@ -291,7 +291,7 @@ public class Minesweeper extends JPanel implements ActionListener {
             // sledgehammer approach: there are 8 possible neighbours
             // some being off grid will yield AIOOBE on access
             //
-            Point bombColRow = arrayIndex2GridCoords(bombIndex);
+            Point bombColRow = index2Coords(bombIndex);
             for (int j = -1; j < 2; j++) {
                 int range = gridSize * j;
                 for (int i = -1; i < 2; i++) {
@@ -379,8 +379,8 @@ public class Minesweeper extends JPanel implements ActionListener {
                 try {
                     if (!hiddenFields[index + range + i].equals(BOMB)
                         && !hiddenFields[index + range + i].equals("open")
-                        && (arrayIndex2GridCoords(index).y + 1) * gridSize > index + i
-                        && (arrayIndex2GridCoords(index).y) * gridSize <= index + i) {
+                        && (index2Coords(index).y + 1) * gridSize > index + i
+                        && (index2Coords(index).y) * gridSize <= index + i) {
                         if (mineDetectors[index + range + i] == 0) {
                             hiddenFields[index + range + i] = "open";
                             openFields[index + range + i] = " ";
@@ -415,7 +415,7 @@ public class Minesweeper extends JPanel implements ActionListener {
         int topLeftCornerY = yTile * TILE_SIZE + (GRID_BASE + BORDER);
 
 
-        if (hiddenFields[gridCoords2ArrayIndex(xTile, yTile)].equals("open")) {
+        if (hiddenFields[coordsToIndex(xTile, yTile)].equals("open")) {
             g.setColor(Color.LIGHT_GRAY);
             g.fillRect(topLeftCornerX, topLeftCornerY, RECT_SIZE, RECT_SIZE);
         } else {
@@ -435,8 +435,8 @@ public class Minesweeper extends JPanel implements ActionListener {
         }
         g.setFont(new Font("Sans", Font.BOLD, 20));
         g.setColor(Color.BLUE);
-        g.drawString(openFields[gridCoords2ArrayIndex(xTile, yTile)], topLeftCornerX + TILE_SIZE / 2 - 6, topLeftCornerY + TILE_SIZE / 2 + 5);
-//        g.drawString(mineDetectors[gridCoords2ArrayIndex(xTile, yTile)] + "", topLeftCornerX + TILE_SIZE / 2, topLeftCornerY + TILE_SIZE / 2);
+        g.drawString(openFields[coordsToIndex(xTile, yTile)], topLeftCornerX + TILE_SIZE / 2 - 6, topLeftCornerY + TILE_SIZE / 2 + 5);
+//        g.drawString(mineDetectors[coordsToIndex(xTile, yTile)] + "", topLeftCornerX + TILE_SIZE / 2, topLeftCornerY + TILE_SIZE / 2);
 
     }
 }
