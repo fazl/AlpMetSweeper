@@ -153,6 +153,8 @@ public class Minesweeper extends JPanel implements ActionListener {
     }
 
     private int coordsToIndex(int column, int row) {
+        if(column<0 || gridSize<=column) throw new IllegalArgumentException("Off grid col="+column);
+        if(row<0    || gridSize<=row) throw new IllegalArgumentException("Off grid row="+row);
         return column + gridSize * row;
     }
     private int coordsToIndex(Point posColRow){
@@ -280,38 +282,56 @@ public class Minesweeper extends JPanel implements ActionListener {
 
 
     private Point index2Coords(int index) {
+        if(index<0 || gridSize*gridSize<=index){
+            throw new IllegalArgumentException("Index off grid: " + index);
+        }
         return new Point(index % gridSize, index / gridSize);
     }
 
     private int[] countAdjacents(String[] field) {
         int[] adjacents = new int[gridSize * gridSize];
+        Set<Integer> neighbourIndices = new TreeSet<>(); //ordered set
         for (int bombIndex : bombIndexes) {
-            // for each mine, increment the count of "adjacent mines"
-            // in each empty neighbour cell.
-            // sledgehammer approach: there are 8 possible neighbours
-            // some being off grid will yield AIOOBE on access
+            // for each mine , inc "adjacent mines" count in neighbours
             //
-            Point bombColRow = index2Coords(bombIndex);
-            for (int j = -1; j < 2; j++) {
-                int range = gridSize * j;
-                for (int i = -1; i < 2; i++) {
-                    try {
-                        if (!hiddenFields[bombIndex + range + i].equals(BOMB)
-                            && bombIndex / gridSize * gridSize + gridSize > (bombIndex + i)
-                            && bombIndex / gridSize * gridSize <= (bombIndex + i)) {
-                            adjacents[bombIndex + range + i] += 1;
-                        }
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        System.out.printf("hiddenFields[%d] but length=%d\n", (bombIndex + range + i), hiddenFields.length);
-                        System.out.printf("bombIndex=%d,range=%d,i=%d\n", bombIndex, range, i);
-                    }
-                }
+            for (int neighbIdx : getNeighbourIdxs( bombIndex, neighbourIndices ) ) {
+//                if( !BOMB.equals(hiddenFields[neighbIdx] ) ??? TODO is this needed ???
+                adjacents[neighbIdx]++;
             }
         }
         return adjacents;
 
     }
+
+    private Set<Integer> getNeighbourIdxs(int index, Set<Integer> neighbours ){
+        Point p = index2Coords(index);
+        neighbours.clear();
+        ArrayList<Point> nPoints = new ArrayList<>(); //for debug output
+        for (int dx = -1; dx<2; ++dx){
+            for (int dy = -1; dy<2; ++dy){
+                try {
+                    Point neighbour = new Point(p.x + dx, p.y + dy); //off grid -> throws
+                    if (!neighbour.equals(p)) {  // neighbour, not self
+                        int neighbourIndex = coordsToIndex(neighbour);
+                        if(neighbours.contains(neighbourIndex)){
+                            System.err.printf(
+                                "\nLogic error: mine idx %d neigbIdx %d already in neighbours.\n",
+                                index, neighbourIndex
+                            );
+                        }else {
+                            neighbours.add(neighbourIndex);
+                            nPoints.add(neighbour);
+                        }
+                    }
+                }catch(IllegalArgumentException e){
+                    //off grid neighbour, ignore
+                }
+            }
+        }
+        System.out.printf("%s neighbours: %s\nIdxs: %s", p, nPoints, neighbours);
+        return neighbours;
+    }
+
 
     private void placeRandomMines(String[] mineField, ArrayList<Integer> bombIndexes) {
         Random rand = new Random();
@@ -346,13 +366,13 @@ public class Minesweeper extends JPanel implements ActionListener {
             if(mineField[index].isEmpty()){
                 mineField[index] = BOMB;
                 bombIndexes.add(index);
-                System.out.printf("Placed bomb at (%d, %d)\n", row, col);
+                System.out.printf("Placed bomb at (%d, %d)\n", col, row);
                 if (--mineAmount <= 0) {
                     System.out.printf("Success: %d mines laid in %d iterations\n", mineAmountOrig, z);
                     break;
                 }
             }else{
-                System.out.printf("\nAlready occupied: (%d, %d)\n", row, col);
+                System.out.printf("\nAlready occupied: (%d, %d)\n", col, row);
             }
             if( 1000_000 < z ){
                 System.err.printf("Failed to lay all mines after %d attempts!\n", z);
