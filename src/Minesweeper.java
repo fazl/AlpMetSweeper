@@ -243,13 +243,18 @@ public class Minesweeper extends JPanel implements ActionListener {
     }
 
     private void winner() {
-        int option = JOptionPane.showConfirmDialog( null,
+        int option = JOptionPane.showOptionDialog( null,
             "Congratulations, You Won!\nWanna play again?",
-            "You Won",
-            JOptionPane.YES_NO_OPTION, JOptionPane.ERROR_MESSAGE,
-            winnerIcon
+            "You Won", //title
+            JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE,
+            winnerIcon,
+            new String[]{"Same again","Menu", "Quit"},
+            "Same again"
         );
-        restart(option == JOptionPane.YES_OPTION);
+        if(2 == option){
+            System.exit(0);  // crude but okay for app with no cleanup action needed
+        }
+        restart(option == 0);
     }
 
     private void restart(boolean again){
