@@ -168,35 +168,43 @@ public class Minesweeper extends JPanel implements ActionListener {
         mineAmount = selectedDifficulty.getMineCount();
 
         if (isLeftMouse) {
-            if (hiddenFields[index].equals(BOMB)) {
-                loser();
-            } else if (hiddenFields[index].equals("")) {
-                if (mineDetectors[index] == 0) {
-                    openNoMineFields(index);
-                } else {
-                    hiddenFields[index] = "open";
-                    openFields[index] = mineDetectors[index] + "";
-                }
-            }
+            onClickLeft(index);
         } else {
-            if (!hiddenFields[index].equals("open") && openFields[index].equals("")) {
-                openFields[index] = "X";
-                if (openFields[index].equals("X") && hiddenFields[index].equals(BOMB)) {
-                    countMarked++;
-                }
-            } else if (!hiddenFields[index].equals("open") && openFields[index].equals("X")) {
-                openFields[index] = "?";
-                if (openFields[index].equals("?") && hiddenFields[index].equals(BOMB)) {
-                    countMarked--;
-                }
-            } else if (!hiddenFields[index].equals("open") && openFields[index].equals("?")) {
-                openFields[index] = "";
-            }
-            if (countMarked == mineAmount && !isGameOver) {
-                winner();
-            }
+            onClickRight(index);
         }
         repaint();
+    }
+
+    private void onClickLeft(int index) {
+        if (hiddenFields[index].equals(BOMB)) {
+            loser();
+        } else {
+            if (mineDetectors[index] == 0) {
+                openCluster(index);
+            } else {
+                hiddenFields[index] = "open";
+                openFields[index] = mineDetectors[index] + "";
+            }
+        }
+    }
+
+    private void onClickRight(int index) {
+        if (!hiddenFields[index].equals("open") && openFields[index].equals("")) {
+            openFields[index] = "X";
+            if (openFields[index].equals("X") && hiddenFields[index].equals(BOMB)) {
+                countMarked++;
+            }
+        } else if (!hiddenFields[index].equals("open") && openFields[index].equals("X")) {
+            openFields[index] = "?";
+            if (openFields[index].equals("?") && hiddenFields[index].equals(BOMB)) {
+                countMarked--;
+            }
+        } else if (!hiddenFields[index].equals("open") && openFields[index].equals("?")) {
+            openFields[index] = "";
+        }
+        if (countMarked == mineAmount && !isGameOver) {
+            winner();
+        }
     }
 
     void newGame() {
@@ -389,9 +397,11 @@ public class Minesweeper extends JPanel implements ActionListener {
         }
     }
 
-    private void openNoMineFields(int index) {
-        if (index >= gridSize * gridSize) {
-            return;
+    // Player clicked an empty cell... try to open cluster of empty cells.
+    //
+    private void openCluster(int index) {
+        if (index<0 || gridSize*gridSize<=index ) {
+            throw new IllegalArgumentException("Off grid index: "+index);
         }
         for (int j = -1; j < 2; j++) {
             int range = gridSize * j;
@@ -404,7 +414,7 @@ public class Minesweeper extends JPanel implements ActionListener {
                         if (mineDetectors[index + range + i] == 0) {
                             hiddenFields[index + range + i] = "open";
                             openFields[index + range + i] = " ";
-                            openNoMineFields(index + range + i);
+                            openCluster(index + range + i);
                         } else {
                             hiddenFields[index + range + i] = "open";
                             openFields[index + range + i] = mineDetectors[index + range + i] + "";
@@ -412,6 +422,7 @@ public class Minesweeper extends JPanel implements ActionListener {
 
                     }
                 } catch (Exception ignored) {
+                    System.err.printf("openCluster threw %s\n", ignored.getMessage());
                 }
             }
 
