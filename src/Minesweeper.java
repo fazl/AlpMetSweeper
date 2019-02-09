@@ -107,10 +107,13 @@ public class Minesweeper extends JPanel implements ActionListener {
     private int[] mineDetectors;
     private int countMarked = 0;
     private boolean isGameOver = false;
+    private boolean bombsRevealed =false;
 
     private Minesweeper() {
         addMouseListener(new NewMouseAdapter(this));
         addMouseMotionListener(new NewMouseMotionAdapter(this));
+
+        testingAid();
 
         gameWindow = new JFrame(GAME_NAME);
         gameWindow.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
@@ -235,17 +238,23 @@ public class Minesweeper extends JPanel implements ActionListener {
         gameWindow.setVisible(true);
     }
 
+    // Only for testing, honest !!
+    private void revealBombs(boolean reveal){
+        System.out.printf("Entered revealBombs(%b)\n", reveal);
+        bombsRevealed = reveal;
+        for (int i = 0; i < hiddenFields.length; i++) {
+            if (hiddenFields[i].equals(BOMB)) {
+                openFields[i] = reveal ? BOMB : "";
+            }
+        }
+        repaint();
+    }
+
     private void loser() {
 
         isGameOver = true;
 
-        // Uncover remaning bombs
-        for (int i = 0; i < hiddenFields.length; i++) {
-            if (hiddenFields[i].equals(BOMB)) {
-                openFields[i] = BOMB;
-            }
-        }
-        repaint();
+        revealBombs(true);        // Uncover remaning bombs
 
         int option = JOptionPane.showOptionDialog(null,
             "Game Over\nWanna play again?",
@@ -421,8 +430,8 @@ public class Minesweeper extends JPanel implements ActionListener {
                         }
 
                     }
-                } catch (Exception ignored) {
-                    System.err.printf("openCluster threw %s\n", ignored.getMessage());
+                } catch (Exception e) {
+                    System.err.printf("openCluster threw %s\n", e.getMessage());
                 }
             }
 
@@ -470,6 +479,20 @@ public class Minesweeper extends JPanel implements ActionListener {
 //        g.drawString(mineDetectors[coordsToIndex(xTile, yTile)] + "", topLeftCornerX + TILE_SIZE / 2, topLeftCornerY + TILE_SIZE / 2);
 
     }
+
+    private void testingAid(){
+        setFocusable(true);
+        addKeyListener(new KeyListener() {
+            public void keyTyped(KeyEvent e) {
+                if (e.getKeyChar()=='r'){
+                    revealBombs(!bombsRevealed);
+                }
+            }
+            public void keyPressed(KeyEvent e) { }
+            public void keyReleased(KeyEvent e) { }
+        });
+    }
+
 }
 
 class NewMouseAdapter extends MouseAdapter {
