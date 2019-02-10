@@ -199,22 +199,30 @@ public class Minesweeper extends JPanel implements ActionListener {
         }
     }
 
+    // Cycle unopened cell label "" -> X -> ? -> "" (and check for winner)
+    //
     private void onClickRight(int index) {
-        if (!hiddenFields[index].equals("open") && openFields[index].equals("")) {
-            openFields[index] = "X";
-            if (openFields[index].equals("X") && hiddenFields[index].equals(BOMB)) {
-                countMarked++;
-            }
-        } else if (!hiddenFields[index].equals("open") && openFields[index].equals("X")) {
-            openFields[index] = "?";
-            if (openFields[index].equals("?") && hiddenFields[index].equals(BOMB)) {
-                countMarked--;
-            }
-        } else if (!hiddenFields[index].equals("open") && openFields[index].equals("?")) {
-            openFields[index] = "";
-        }
-        if (countMarked == mineAmount && !isGameOver) {
-            userWon();
+        if (hiddenFields[index].equals("open") || isGameOver )
+            return;
+
+        switch (openFields[index]) {
+            case "":
+                openFields[index] = "X";
+                if (hiddenFields[index].equals(BOMB)) {
+                    if (++countMarked == mineAmount) {
+                        userWon();
+                    }
+                }
+                break;
+            case "X":
+                openFields[index] = "?";
+                if (hiddenFields[index].equals(BOMB)) {
+                    countMarked--;
+                }
+                break;
+            case "?":
+                openFields[index] = "";
+                break;
         }
     }
 
