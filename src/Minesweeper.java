@@ -94,6 +94,11 @@ public class Minesweeper extends JPanel implements ActionListener {
     private static final String BOMB = "*";
     private static final String GAME_NAME = "Minesweeper 1.0";
     static final String OUTSIDE_GRID = "Ignore mouse outside grid";
+    private static final Color COLOR_CELL_OPEN = Color.LIGHT_GRAY;
+    private static final Color COLOR_CELL_ACTIVE = Color.ORANGE;
+    private static final Color COLOR_CELL_GAMEOVER = Color.DARK_GRAY;
+    private static final Color COLOR_CELL_UNOPENED = Color.GRAY;
+    private static final Color COLOR_CELL_TEXT = Color.BLUE;
     static Difficulty selectedDifficulty = Difficulty.Medium;
     private static JFrame gameWindow = null;
     private final int TILE_SIZE = 45;
@@ -114,7 +119,7 @@ public class Minesweeper extends JPanel implements ActionListener {
     private String[] backupFields;
 
     private Minesweeper() {
-        addMouseListener(new NewMouseAdapter(this));
+        addMouseListener(new MouseClickAdapter(this));
         addMouseMotionListener(new NewMouseMotionAdapter(this));
 
         testingAid();
@@ -425,7 +430,7 @@ public class Minesweeper extends JPanel implements ActionListener {
             int range = gridSize * j;
             for (int i = -1; i < 2; i++) {
                 try {
-                    if (!hiddenFields[index + range + i].equals(BOMB)
+                    if (!hiddenFields[index + range + i].equals(BOMB) // TODO FIX AIOOBE (off the end)
                         && !hiddenFields[index + range + i].equals("open")
                         && (index2Coords(index).y + 1) * gridSize > index + i
                         && (index2Coords(index).y) * gridSize <= index + i) {
@@ -440,7 +445,7 @@ public class Minesweeper extends JPanel implements ActionListener {
 
                     }
                 } catch (Exception e) {
-                    System.err.printf("openCluster threw %s\n", e.getMessage());
+                    System.err.printf("openCluster threw %s\n", e);
                 }
             }
 
@@ -463,37 +468,36 @@ public class Minesweeper extends JPanel implements ActionListener {
         int topLeftCornerX = xTile * TILE_SIZE + (GRID_BASE + BORDER);
         int topLeftCornerY = yTile * TILE_SIZE + (GRID_BASE + BORDER);
 
+        // shading opened cells
+        Color color=COLOR_CELL_OPEN;
 
-        if (hiddenFields[coordsToIndex(xTile, yTile)].equals("open")) {
-            g.setColor(Color.LIGHT_GRAY);
-            g.fillRect(topLeftCornerX, topLeftCornerY, RECT_SIZE, RECT_SIZE);
-        } else {
+        // shading unopened cells
+        if (!hiddenFields[coordsToIndex(xTile, yTile)].equals("open")) {
+            color = COLOR_CELL_UNOPENED;
+
             if (isGameOver) {
-                g.setColor(Color.DARK_GRAY);
-                g.fillRect(topLeftCornerX, topLeftCornerY, RECT_SIZE, RECT_SIZE);
-            } else {
-                g.setColor(Color.GRAY);
-                g.fillRect(topLeftCornerX, topLeftCornerY, RECT_SIZE, RECT_SIZE);
+                color=COLOR_CELL_GAMEOVER;
+            }else if (new Point(xTile, yTile).equals(mouseLoc)){
+                color = COLOR_CELL_ACTIVE; // highlight active cell
             }
         }
-        if (mouseLoc != null && !isGameOver) {
-            if (mouseLoc.equals(new Point(xTile, yTile))) {
-                g.setColor(Color.LIGHT_GRAY);
-                g.fillRect(topLeftCornerX, topLeftCornerY, RECT_SIZE, RECT_SIZE);
-            }
-        }
-        g.setFont(new Font("Sans", Font.BOLD, 20));
-        g.setColor(Color.BLUE);
-        g.drawString(openFields[coordsToIndex(xTile, yTile)], topLeftCornerX + TILE_SIZE / 2 - 6, topLeftCornerY + TILE_SIZE / 2 + 5);
-//        g.drawString(mineDetectors[coordsToIndex(xTile, yTile)] + "", topLeftCornerX + TILE_SIZE / 2, topLeftCornerY + TILE_SIZE / 2);
+        g.setColor(color);
+        g.fillRect(topLeftCornerX, topLeftCornerY, RECT_SIZE, RECT_SIZE);
 
+        // draw label on tile
+        g.setFont(new Font("Sans", Font.BOLD, 20));
+        g.setColor(COLOR_CELL_TEXT);
+        g.drawString(
+            openFields[coordsToIndex(xTile, yTile)],
+            topLeftCornerX + TILE_SIZE / 2 - 6,
+            topLeftCornerY + TILE_SIZE / 2 + 5);
     }
 
     private void testingAid(){
         setFocusable(true);
         addKeyListener(new KeyListener() {
             public void keyTyped(KeyEvent e) {
-                if (e.getKeyChar()=='r'){
+                if ("rR".contains(""+e.getKeyChar())){
                     revealBombs(!bombsRevealed);
                 }
             }
@@ -504,10 +508,10 @@ public class Minesweeper extends JPanel implements ActionListener {
 
 }
 
-class NewMouseAdapter extends MouseAdapter {
+class MouseClickAdapter extends MouseAdapter {
     private Minesweeper game;
 
-    NewMouseAdapter(Minesweeper p) {
+    MouseClickAdapter(Minesweeper p) {
         game = p;
     }
 
