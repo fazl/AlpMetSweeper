@@ -95,7 +95,7 @@ public class Minesweeper extends JPanel implements ActionListener {
     private static final String GAME_NAME = "Minesweeper 1.0";
     static final String OUTSIDE_GRID = "Ignore mouse outside grid";
     private static final Color COLOR_CELL_OPEN = Color.LIGHT_GRAY;
-    private static final Color COLOR_CELL_ACTIVE = Color.ORANGE;
+    private static final Color COLOR_CELL_HIGHLIGHT = Color.ORANGE;
     private static final Color COLOR_CELL_GAMEOVER = Color.DARK_GRAY;
     private static final Color COLOR_CELL_UNOPENED = Color.GRAY;
     private static final Color COLOR_CELL_TEXT = Color.BLUE;
@@ -176,8 +176,6 @@ public class Minesweeper extends JPanel implements ActionListener {
     void onClick(boolean isLeftMouse, int xMouse, int yMouse) {
         int index = coordsToIndex( mouse2GridCoords(xMouse, yMouse) );
 
-        mineAmount = selectedDifficulty.getMineCount();
-
         if (isLeftMouse) {
             onClickLeft(index);
         } else {
@@ -186,6 +184,8 @@ public class Minesweeper extends JPanel implements ActionListener {
         repaint();
     }
 
+    // Opens cells (maybe cluster). Check for loser
+    //
     private void onClickLeft(int index) {
         if (hiddenFields[index].equals(BOMB)) {
             // X or ? protects cell against accidental clicks
@@ -249,7 +249,7 @@ public class Minesweeper extends JPanel implements ActionListener {
         Arrays.fill(backupFields, "");
 
         hiddenFields = new String[N];
-        placeRandomMines(hiddenFields, bombIndexes);// TODO  disperesed vs clumped strategies ?
+        placeRandomMines(mineAmount, hiddenFields, bombIndexes);// TODO  disperesed vs clumped strategies ?
 
         // TODO understand the rest of this...
         mineDetectors = countAdjacents(hiddenFields);
@@ -376,13 +376,13 @@ public class Minesweeper extends JPanel implements ActionListener {
     }
 
 
-    private void placeRandomMines(String[] mineField, ArrayList<Integer> bombIndexes) {
+    private void placeRandomMines(int nMines, String[] mineField, ArrayList<Integer> bombIndexes) {
         Random rand = new Random();
         Arrays.fill(mineField, "");
         bombIndexes.clear();
 
         final int N = gridSize*gridSize;
-        final int mineAmountOrig = mineAmount;
+        final int origMines = nMines;
 
 //        // Takes about 800 iters to lay 90 mines
 //        int attempts = 0;
@@ -390,19 +390,19 @@ public class Minesweeper extends JPanel implements ActionListener {
 //            ++attempts;
 //            if (mineField[i].isEmpty() && rand.nextInt(8) < 1) {
 //                mineField[i] = BOMB;
-//                if (--mineAmount == 0) {
-//                    System.out.printf("Success: %d mines laid in %d iterations\n", mineAmountOrig, attempts);
+//                if (--nMines == 0) {
+//                    System.out.printf("Success: %d mines laid in %d iterations\n", origMines, attempts);
 //                    break;
 //                }
 //            }
-//            if (mineAmount != 0 && i == (gridSize * gridSize) - 1) {
+//            if (nMines != 0 && i == (gridSize * gridSize) - 1) {
 //                i = 0;
 //            }
 //        }
 
         // Takes about 100 iters to lay 90 mines
         for(int attempt = 1; ; ++attempt ){
-            System.out.printf("Lay mines iter: %d (outstanding %d mines)..  ", attempt, mineAmount);
+            System.out.printf("Lay mines iter: %d (outstanding %d mines)..  ", attempt, nMines);
             int row = rand.nextInt(gridSize);
             int col = rand.nextInt(gridSize);
             int index = row*gridSize + col;
@@ -410,8 +410,8 @@ public class Minesweeper extends JPanel implements ActionListener {
                 mineField[index] = BOMB;
                 bombIndexes.add(index);
                 System.out.printf("Placed bomb at (%d, %d)\n", col, row);
-                if (--mineAmount <= 0) {
-                    System.out.printf("Success: %d mines laid in %d iterations\n", mineAmountOrig, attempt);
+                if (--nMines <= 0) {
+                    System.out.printf("Success: %d mines laid in %d iterations\n", origMines, attempt);
                     break;
                 }
             }else{
@@ -419,15 +419,15 @@ public class Minesweeper extends JPanel implements ActionListener {
             }
             if( 1000_000 < attempt ){
                 System.err.printf("Failed to lay all mines after %d attempts!\n", attempt);
-                System.err.printf("Quitting after %d mines laid!\n", mineAmountOrig-mineAmount);
+                System.err.printf("Quitting after %d mines laid!\n", origMines-nMines);
                 break;
             }
         }
         Collections.sort(bombIndexes);  // why not
         System.out.printf("\nRecorded %d mines:\n%s\n", bombIndexes.size(), bombIndexes);
-        if(bombIndexes.size() != mineAmountOrig){
+        if(bombIndexes.size() != origMines){
             System.err.printf("Error: Expected %d (not %d) mines!\n",
-                mineAmountOrig,
+                origMines,
                 bombIndexes.size());
         }
     }
@@ -490,17 +490,18 @@ public class Minesweeper extends JPanel implements ActionListener {
             if (isGameOver) {
                 color=COLOR_CELL_GAMEOVER;
             }else if (new Point(xTile, yTile).equals(mouseLoc)){
-                color = COLOR_CELL_ACTIVE; // highlight active cell
+                color = COLOR_CELL_HIGHLIGHT;
             }
         }
         g.setColor(color);
         g.fillRect(topLeftCornerX, topLeftCornerY, RECT_SIZE, RECT_SIZE);
 
         // draw label on tile
+        String text = openFields[coordsToIndex(xTile, yTile)];
         g.setFont(new Font("Sans", Font.BOLD, 20));
-        g.setColor(COLOR_CELL_TEXT);
+        g.setColor(BOMB.equals(text)? COLOR_CELL_HIGHLIGHT : COLOR_CELL_TEXT);
         g.drawString(
-            openFields[coordsToIndex(xTile, yTile)],
+            text,
             topLeftCornerX + TILE_SIZE / 2 - 6,
             topLeftCornerY + TILE_SIZE / 2 + 5);
     }
