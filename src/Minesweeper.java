@@ -188,7 +188,11 @@ public class Minesweeper extends JPanel implements ActionListener {
 
     private void onClickLeft(int index) {
         if (hiddenFields[index].equals(BOMB)) {
-            userLost();
+            // X or ? protects cell against accidental clicks
+            if( !"X".equals(openFields[index]) &&
+                !"?".equals(openFields[index]) ){
+                userLost();
+            }
         } else {
             if (mineDetectors[index] == 0) {
                 openCluster(index);
