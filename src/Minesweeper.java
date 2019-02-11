@@ -125,7 +125,7 @@ public class Minesweeper extends JPanel implements ActionListener {
     private int mineAmount;
     private int countMarked = 0;
     private boolean isGameOver = false;
-    private boolean bombsRevealed =false;
+    private boolean showMines =false;
 
     private Minesweeper() {
         addMouseListener(new MouseClickAdapter(this));
@@ -256,7 +256,7 @@ public class Minesweeper extends JPanel implements ActionListener {
                                                     // TODO  dispersed vs clumped strategies ?
         mineAmount = placeRandomMines(selectedDifficulty.getMineCount(), fields, bombIndexes);
 
-        bombsRevealed = false;  //TODO: Rename minesVisible ???
+        showMines = false;
         isGameOver = false;
         mouseLoc = null;
         gameWindow.pack();
@@ -267,7 +267,7 @@ public class Minesweeper extends JPanel implements ActionListener {
     // Only for testing, honest !!
     private void revealBombs(boolean reveal){
         System.out.printf("Entered revealBombs(%b)\n", reveal);
-        bombsRevealed = reveal;
+        showMines = reveal;
         for (TileData field : fields) {
             if (field.hasMine) {
                 if (reveal) {
@@ -338,7 +338,7 @@ public class Minesweeper extends JPanel implements ActionListener {
 
 
 
-    private Set<Integer> getNeighbourIdxs(int index, Set<Integer> TODO_remove ){
+    private Set<Integer> getNeighbourIdxs(int index ){
         Point p = index2Coords(index);
         Set<Integer> neighbours = new TreeSet<>(); //auto sorts
         for (int dx = -1; dx<2; ++dx){
@@ -399,7 +399,7 @@ public class Minesweeper extends JPanel implements ActionListener {
             if(!mineField[index].hasMine){
                 mineField[index].hasMine = true;
                 bombIndexes.add(index);
-                for (int nIdx : getNeighbourIdxs( index, null ) ) {
+                for (int nIdx : getNeighbourIdxs( index ) ) {
                     mineField[nIdx].detectedMines++;
                 }
 
@@ -432,28 +432,16 @@ public class Minesweeper extends JPanel implements ActionListener {
     // Recurses on neighbours that have no detected mines
     //
     private void openCluster(int index) {
-        if (index<0 || gridSize*gridSize<=index ) {
-            throw new IllegalArgumentException("Off grid index: "+index);
-        }
-        for (int j = -1; j < 2; j++) {
-            int range = gridSize * j;
-            for (int i = -1; i < 2; i++) {
-                try {
-                    TileData field = fields[index + range + i];  // TODO FIX AIOOBE (off the end)
-                    if (!field.hasMine
-                        && !field.isOpened
-                        && (index2Coords(index).y + 1) * gridSize > index + i   // prevents wraparound
-                        && (index2Coords(index).y) * gridSize <= index + i) {   // prevents wraparound
-                        field.open();
-                        if (field.detectedMines == 0) {
-                            openCluster(index + range + i);  // NB recursion
-                        }
-                    }
-                } catch (Exception e) {
-                    System.err.printf("openCluster threw %s\n", e);
+        fields[index].open();
+
+        for( int nIdx : getNeighbourIdxs(index) ){
+            TileData field = fields[nIdx];
+            if ( !field.isOpened && !field.hasMine ) {
+                field.open();
+                if (field.detectedMines == 0) {
+                    openCluster(nIdx);  // NB recursion
                 }
             }
-
         }
     }
 
@@ -506,7 +494,7 @@ public class Minesweeper extends JPanel implements ActionListener {
         addKeyListener(new KeyListener() {
             public void keyTyped(KeyEvent e) {
                 if ("rR".contains(""+e.getKeyChar())){
-                    revealBombs(!bombsRevealed);
+                    revealBombs(!showMines);
                 }
             }
             public void keyPressed(KeyEvent e) { }
