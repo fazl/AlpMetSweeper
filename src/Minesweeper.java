@@ -7,7 +7,7 @@ class TileData {
     boolean isOpened = false;
     boolean hasMine = false;
     private TileState state = TileState.nil;
-    private TileState backupLabel = TileState.nil;
+    TileState backupLabel = TileState.nil;
 
     TileState getState() { return state; }
     void setState(TileState state) { this.state = state; }
@@ -27,7 +27,7 @@ class TileData {
     }
 
     void backupLabel() { backupLabel = state;}
-    void restoreLabel() { state = backupLabel;}
+    void restoreLabel() { state = backupLabel; backupLabel=TileState.nil;}
 }
 
 class GridPoint extends Point {
@@ -88,6 +88,8 @@ public class Minesweeper extends JPanel implements ActionListener {
     private static final Color COLOR_CELL_GAMEOVER = Color.DARK_GRAY;
     private static final Color COLOR_CELL_UNOPENED = Color.GRAY;
     private static final Color COLOR_CELL_TEXT = Color.BLUE;
+    private static final Color COLOR_BOMB_FOUND = Color.GREEN;
+    private static final Color COLOR_BOMB_MISSED = Color.RED;
     static Difficulty selectedDifficulty = Difficulty.Fun;
     private static JFrame gameWindow = null;
     private final int TILE_SIZE = 45;
@@ -222,21 +224,19 @@ public class Minesweeper extends JPanel implements ActionListener {
     }
 
     void newGame() {
+        countMarked = 0;
+        countOpened = 0;
         gridSize = selectedDifficulty.getSize();
-
         final int N = gridSize*gridSize;
+        fields = new TileData[N];
+        for(int i = 0; i<N; ++i){ fields[i]=new TileData(); }
+                              // TODO  dispersed vs clumped strategies ?
+        mineAmount = placeRandomMines(selectedDifficulty.getMineCount(), fields, bombIndexes);
         if(N <= mineAmount){
             String error = String.format("mineAmount: %d >= %d squares :(", mineAmount, N);
             System.err.println(error);
             throw new IllegalStateException(error);
         }
-
-        countMarked = 0;
-        countOpened = 0;
-        fields = new TileData[N];
-        for(int i = 0; i<N; ++i){ fields[i]=new TileData(); }
-                                                    // TODO  dispersed vs clumped strategies ?
-        mineAmount = placeRandomMines(selectedDifficulty.getMineCount(), fields, bombIndexes);
 
         showMines = false;
         isGameOver = false;
@@ -269,7 +269,6 @@ public class Minesweeper extends JPanel implements ActionListener {
     private void userLost() {
 
         isGameOver = true;
-
         showMines(true);        // Uncover remaining bombs
 
         int option = JOptionPane.showOptionDialog(null,
@@ -280,6 +279,9 @@ public class Minesweeper extends JPanel implements ActionListener {
             GameOption.values(),
             GameOption.SameAgain
         );
+        if(option < 0){
+            System.exit(0);  // crude but okay for app with no cleanup action needed
+        }
         restart(GameOption.values()[option]);
     }
 
@@ -292,6 +294,9 @@ public class Minesweeper extends JPanel implements ActionListener {
             GameOption.values(),
             GameOption.SameAgain
         );
+        if(option < 0){
+            System.exit(0);  // crude but okay for app with no cleanup action needed
+        }
         restart(GameOption.values()[option]);
     }
 
@@ -450,7 +455,20 @@ public class Minesweeper extends JPanel implements ActionListener {
         // draw label on tile
         String text = field.getState().text;
         g.setFont(new Font("Sans", Font.BOLD, 20));
-        g.setColor(text.equals(TileState.bomb.text) ? COLOR_CELL_HIGHLIGHT : COLOR_CELL_TEXT);
+
+
+        if( text.equals(TileState.bomb.text) ){
+            // When user loses all mines are revealed and prior label is backed up
+            // backup 'X' : player had marked bomb before tripping a different one
+            // backup '' : player had not marked it
+            color = field.backupLabel==TileState.marked
+                  ? COLOR_BOMB_FOUND
+                  : COLOR_BOMB_MISSED;
+        }else{
+            color = COLOR_CELL_TEXT;
+        }
+        g.setColor(color);
+
         g.drawString(
             text,
             topLeftCornerX + TILE_SIZE / 2 - 6,
