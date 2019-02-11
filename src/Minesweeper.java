@@ -22,6 +22,7 @@ class TileData {
         if(!isOpened) {
             isOpened = true;
             state = TileState.values()[detectedMines];
+            ++Minesweeper.countOpened;
         }
     }
 
@@ -98,8 +99,9 @@ public class Minesweeper extends JPanel implements ActionListener {
     private GameChooser gameChooser;
     private TileData[] fields;
     private ArrayList<Integer> bombIndexes = new ArrayList<>();
-    private int mineAmount;
-    private int countMarked = 0;
+    private static int mineAmount;
+    private static int countMarked;
+            static int countOpened = 0;
     private boolean isGameOver = false;
     private boolean showMines =false;
 
@@ -166,6 +168,12 @@ public class Minesweeper extends JPanel implements ActionListener {
         } else {
             onClickRight(index);
         }
+
+        // check if won by marking last mine or clearing last tile
+        if( countMarked == mineAmount &&
+            countOpened == gridSize*gridSize - mineAmount){
+            userWon();
+        }
         repaint();
     }
 
@@ -187,7 +195,7 @@ public class Minesweeper extends JPanel implements ActionListener {
         }
     }
 
-    // Cycle unopened cell label "" -> X -> ? -> "" (and check for winner)
+    // Cycle unopened cell label "" -> X -> ? -> ""
     //
     private void onClickRight(int index) {
         final TileData field = fields[index];
@@ -198,9 +206,7 @@ public class Minesweeper extends JPanel implements ActionListener {
             case nil:
                 field.setState( TileState.marked );
                 if (field.hasMine) {
-                    if (++countMarked == mineAmount) {
-                        userWon();                      // game over
-                    }
+                    ++countMarked;                      // maybe game won
                 }
                 break;
             case marked:
@@ -226,6 +232,7 @@ public class Minesweeper extends JPanel implements ActionListener {
         }
 
         countMarked = 0;
+        countOpened = 0;
         fields = new TileData[N];
         for(int i = 0; i<N; ++i){ fields[i]=new TileData(); }
                                                     // TODO  dispersed vs clumped strategies ?
