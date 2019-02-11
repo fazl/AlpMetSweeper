@@ -40,11 +40,23 @@ enum Difficulty {
     public int getSize() {
         return size;
     }
-
     public int getMineCount() {
         return mineCount;
     }
+}
+class TileData {
+    boolean isOpened = false;
+    boolean hasMine = false;
+    String label = "";
+    String backupLabel = "";
+    int detectedMines = 0;
 
+    void open() {
+        if(!isOpened) {
+            isOpened = true;
+            label = detectedMines == 0 ? " " : "" + detectedMines;
+        }
+    }
 }
 
 class GameChooser extends JFrame {
@@ -103,20 +115,17 @@ public class Minesweeper extends JPanel implements ActionListener {
     private static JFrame gameWindow = null;
     private final int TILE_SIZE = 45;
     private final int GRID_BASE = 2;
-    Point mouseLoc;
+    Point mouseLoc=null;
     boolean isLeftMouse;
     private int gridSize = 15;
     private int BORDER = 2;
     private GameChooser gameChooser;
-    private String[] openFields;        // holds: cell label AND count of neighb mines
-    private String[] closedFields;      // holds: mine presence and whether opened
+    private TileData[] fields;
     private ArrayList<Integer> bombIndexes = new ArrayList<>();
     private int mineAmount;
-    private int[] mineDetectors;
     private int countMarked = 0;
     private boolean isGameOver = false;
     private boolean bombsRevealed =false;
-    private String[] backupFields;
 
     private Minesweeper() {
         addMouseListener(new MouseClickAdapter(this));
@@ -188,19 +197,18 @@ public class Minesweeper extends JPanel implements ActionListener {
     //
     private void onClickLeft(int index) {
         // X or ? protects cell against accidental clicks
-        if( "X".equals(openFields[index]) ||
-            "?".equals(openFields[index]) ){
+        if( "X".equals(fields[index].label) ||
+            "?".equals(fields[index].label) ){
             return;
         }
 
-        if (closedFields[index].equals(BOMB)) {
+        if (fields[index].hasMine) {
             userLost();
         } else {
-            if (mineDetectors[index] == 0) {
+            if (fields[index].detectedMines == 0) {
                 openCluster(index);
             } else {
-                closedFields[index] = "open";
-                openFields[index] = mineDetectors[index] + "";
+                fields[index].open(); //also sets label
             }
         }
     }
@@ -208,33 +216,32 @@ public class Minesweeper extends JPanel implements ActionListener {
     // Cycle unopened cell label "" -> X -> ? -> "" (and check for winner)
     //
     private void onClickRight(int index) {
-        if (closedFields[index].equals("open") || isGameOver )
+        if (fields[index].isOpened || isGameOver )
             return;
 
-        switch (openFields[index]) {
+        switch (fields[index].label) {
             case "":
-                openFields[index] = "X";
-                if (closedFields[index].equals(BOMB)) {
+                fields[index].label = "X";
+                if (fields[index].hasMine) {
                     if (++countMarked == mineAmount) {
                         userWon();
                     }
                 }
                 break;
             case "X":
-                openFields[index] = "?";
-                if (closedFields[index].equals(BOMB)) {
+                fields[index].label = "?";
+                if (fields[index].hasMine) {
                     countMarked--;
                 }
                 break;
             case "?":
-                openFields[index] = "";
+                fields[index].label = "";
                 break;
         }
     }
 
     void newGame() {
         gridSize = selectedDifficulty.getSize();
-        mineAmount = selectedDifficulty.getMineCount();
 
         final int N = gridSize*gridSize;
         if(N <= mineAmount){
@@ -244,21 +251,15 @@ public class Minesweeper extends JPanel implements ActionListener {
         }
 
         countMarked = 0;
-        openFields = new String[N];
-        backupFields = new String[N];
-        bombsRevealed = false;
-        Arrays.fill(openFields, "");
-        Arrays.fill(backupFields, "");
+        fields = new TileData[N];
+        for(int i = 0; i<N; ++i){ fields[i]=new TileData(); }
+                                                    // TODO  dispersed vs clumped strategies ?
+        mineAmount = placeRandomMines(selectedDifficulty.getMineCount(), fields, bombIndexes);
 
-        closedFields = new String[N];
-        placeRandomMines(mineAmount, closedFields, bombIndexes);// TODO  disperesed vs clumped strategies ?
-
-        // TODO understand the rest of this...
-        mineDetectors = countAdjacents(closedFields);
+        bombsRevealed = false;  //TODO: Rename minesVisible ???
         isGameOver = false;
         mouseLoc = null;
         gameWindow.pack();
-//        repaint();
         gameWindow.setLocationRelativeTo(null); //center window - must call after size set!
         gameWindow.setVisible(true);
     }
@@ -267,13 +268,13 @@ public class Minesweeper extends JPanel implements ActionListener {
     private void revealBombs(boolean reveal){
         System.out.printf("Entered revealBombs(%b)\n", reveal);
         bombsRevealed = reveal;
-        for (int i = 0; i < closedFields.length; i++) {
-            if (closedFields[i].equals(BOMB)) {
-                if(reveal){
-                    backupFields[i] = openFields[i];
-                    openFields[i] = BOMB;               //temporary reveal
-                }else{
-                    openFields[i] = backupFields[i];
+        for (TileData field : fields) {
+            if (field.hasMine) {
+                if (reveal) {
+                    field.backupLabel = field.label;
+                    field.label = BOMB;               //temporary reveal
+                } else {
+                    field.label = field.backupLabel;
                 }
             }
         }
@@ -335,24 +336,11 @@ public class Minesweeper extends JPanel implements ActionListener {
         return new Point(index % gridSize, index / gridSize);
     }
 
-    private int[] countAdjacents(String[] field) {
-        int[] adjacents = new int[gridSize * gridSize];
-        Set<Integer> neighbourIndices = new TreeSet<>(); //ordered set
-        for (int bombIndex : bombIndexes) {
-            // for each mine , inc "adjacent mines" count in neighbours
-            //
-            for (int neighbIdx : getNeighbourIdxs( bombIndex, neighbourIndices ) ) {
-//                if( !BOMB.equals(closedFields[neighbIdx] ) ??? TODO is this needed ???
-                adjacents[neighbIdx]++;
-            }
-        }
-        return adjacents;
 
-    }
 
-    private Set<Integer> getNeighbourIdxs(int index, Set<Integer> neighbours ){
+    private Set<Integer> getNeighbourIdxs(int index, Set<Integer> TODO_remove ){
         Point p = index2Coords(index);
-        neighbours.clear();
+        Set<Integer> neighbours = new TreeSet<>(); //auto sorts
         for (int dx = -1; dx<2; ++dx){
             for (int dy = -1; dy<2; ++dy){
                 try {
@@ -378,13 +366,14 @@ public class Minesweeper extends JPanel implements ActionListener {
     }
 
 
-    private void placeRandomMines(int nMines, String[] mineField, ArrayList<Integer> bombIndexes) {
-        Random rand = new Random();
-        Arrays.fill(mineField, "");
+    // Try to place requested nr of mines.  Return nr of mines placed.
+    private int placeRandomMines(int nMines, TileData[] mineField, ArrayList<Integer> bombIndexes) {
         bombIndexes.clear();
-
         final int N = gridSize*gridSize;
+        if(N!=mineField.length){throw new IllegalStateException("Logic error: mineField size mismatches grid size");}
         final int origMines = nMines;
+
+        Random rand = new Random();
 
 //        // Takes about 800 iters to lay 90 mines
 //        int attempts = 0;
@@ -403,14 +392,17 @@ public class Minesweeper extends JPanel implements ActionListener {
 //        }
 
         // Takes about 100 iters to lay 90 mines
+        int col, row, index;
         for(int attempt = 1; ; ++attempt ){
             System.out.printf("Lay mines iter: %d (outstanding %d mines)..  ", attempt, nMines);
-            int row = rand.nextInt(gridSize);
-            int col = rand.nextInt(gridSize);
-            int index = row*gridSize + col;
-            if(mineField[index].isEmpty()){
-                mineField[index] = BOMB;
+            index = coordsToIndex(col=rand.nextInt(gridSize), row=rand.nextInt(gridSize));
+            if(!mineField[index].hasMine){
+                mineField[index].hasMine = true;
                 bombIndexes.add(index);
+                for (int nIdx : getNeighbourIdxs( index, null ) ) {
+                    mineField[nIdx].detectedMines++;
+                }
+
                 System.out.printf("Placed bomb at (%d, %d)\n", col, row);
                 if (--nMines <= 0) {
                     System.out.printf("Success: %d mines laid in %d iterations\n", origMines, attempt);
@@ -421,7 +413,7 @@ public class Minesweeper extends JPanel implements ActionListener {
             }
             if( 1000_000 < attempt ){
                 System.err.printf("Failed to lay all mines after %d attempts!\n", attempt);
-                System.err.printf("Quitting after %d mines laid!\n", origMines-nMines);
+                System.err.printf("Quitting after %d mines laid!\n", bombIndexes.size());
                 break;
             }
         }
@@ -432,9 +424,12 @@ public class Minesweeper extends JPanel implements ActionListener {
                 origMines,
                 bombIndexes.size());
         }
+        return bombIndexes.size();
+
     }
 
     // Player clicked an empty cell... try to open cluster of empty cells.
+    // Recurses on neighbours that have no detected mines
     //
     private void openCluster(int index) {
         if (index<0 || gridSize*gridSize<=index ) {
@@ -444,19 +439,15 @@ public class Minesweeper extends JPanel implements ActionListener {
             int range = gridSize * j;
             for (int i = -1; i < 2; i++) {
                 try {
-                    if (!closedFields[index + range + i].equals(BOMB) // TODO FIX AIOOBE (off the end)
-                        && !closedFields[index + range + i].equals("open")
-                        && (index2Coords(index).y + 1) * gridSize > index + i
-                        && (index2Coords(index).y) * gridSize <= index + i) {
-                        if (mineDetectors[index + range + i] == 0) {
-                            closedFields[index + range + i] = "open";
-                            openFields[index + range + i] = " ";
-                            openCluster(index + range + i);
-                        } else {
-                            closedFields[index + range + i] = "open";
-                            openFields[index + range + i] = mineDetectors[index + range + i] + "";
+                    TileData field = fields[index + range + i];  // TODO FIX AIOOBE (off the end)
+                    if (!field.hasMine
+                        && !field.isOpened
+                        && (index2Coords(index).y + 1) * gridSize > index + i   // prevents wraparound
+                        && (index2Coords(index).y) * gridSize <= index + i) {   // prevents wraparound
+                        field.open();
+                        if (field.detectedMines == 0) {
+                            openCluster(index + range + i);  // NB recursion
                         }
-
                     }
                 } catch (Exception e) {
                     System.err.printf("openCluster threw %s\n", e);
@@ -476,6 +467,7 @@ public class Minesweeper extends JPanel implements ActionListener {
 
     }
 
+    //TODO don't highlight X or ? cells on mouseover (cant be clicked)
     private void drawTile(Graphics g, int yTile, int xTile) {
         int RECT_SIZE = TILE_SIZE - BORDER;
 
@@ -486,7 +478,8 @@ public class Minesweeper extends JPanel implements ActionListener {
         Color color=COLOR_CELL_OPEN;
 
         // shading unopened cells
-        if (!closedFields[coordsToIndex(xTile, yTile)].equals("open")) {
+        int index = coordsToIndex(xTile, yTile);
+        if (!fields[index].isOpened) {
             color = COLOR_CELL_UNOPENED;
 
             if (isGameOver) {
@@ -499,7 +492,7 @@ public class Minesweeper extends JPanel implements ActionListener {
         g.fillRect(topLeftCornerX, topLeftCornerY, RECT_SIZE, RECT_SIZE);
 
         // draw label on tile
-        String text = openFields[coordsToIndex(xTile, yTile)];
+        String text = fields[index].label;
         g.setFont(new Font("Sans", Font.BOLD, 20));
         g.setColor(BOMB.equals(text)? COLOR_CELL_HIGHLIGHT : COLOR_CELL_TEXT);
         g.drawString(
