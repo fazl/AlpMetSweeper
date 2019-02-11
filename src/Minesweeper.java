@@ -3,62 +3,34 @@ import java.awt.*;
 import java.awt.event.*;
 import java.util.*;
 
-enum NewGameOption {SameAgain, Menu, Quit }
-
-enum Difficulty {
-    Trivial(4, 3),
-    Easy(6, 6),
-    Medium(10, 20),
-    Fun(15, 40),
-    Hard(15,90);
-
-    private int size;
-    private int mineCount;
-
-    Difficulty(int size, int count) {
-        this.size = size;
-        mineCount = count;
-    }
-
-    @Override
-    public String toString() {
-        //  e.g. "Easy (6x6 Grid, 6 Mines)"
-        return String.format("%s (%dx%d Grid, %d Mines)",
-            super.toString(), size, size, mineCount
-        );
-    }
-
-    public int getSize() {
-        return size;
-    }
-    public int getMineCount() {
-        return mineCount;
-    }
-}
 class TileData {
-    private static final String MARKED = "X";
-    private static final String MAYBE = "?";
     boolean isOpened = false;
     boolean hasMine = false;
-    String label = "";
-    String backupLabel = "";
+    private TileLabel label = TileLabel.nil;
+    private TileLabel backupLabel = TileLabel.nil;
+
+    TileLabel getLabel() { return label; }
+    void setLabel(TileLabel label) { this.label = label; }
+
     int detectedMines = 0;
 
-    boolean isLocked(){
-        return label.equals(MARKED) || label.equals(MAYBE);
+    boolean isLive(){
+        return label != TileLabel.marked && label != TileLabel.maybe;
     }
 
     void open() {
         if(!isOpened) {
             isOpened = true;
-            label = detectedMines == 0 ? " " : "" + detectedMines;
+            label = TileLabel.values()[detectedMines];
         }
     }
+
+    void backupLabel() { backupLabel = label;}
+    void restoreLabel() { label = backupLabel;}
 }
 
 class GridPoint extends Point {
     GridPoint(int x, int y){ super(x,y); }
-    GridPoint(){super();}
 
     @Override
     public String toString() { return String.format("GridPoint(x=%d,y=%d)", x, y); }
@@ -108,7 +80,6 @@ public class Minesweeper extends JPanel implements ActionListener {
     private static final ImageIcon winnerIcon = new ImageIcon(Minesweeper.class.getResource("/youwon.gif"));
 
 
-    private static final String BOMB = "*";
     private static final String GAME_NAME = "Minesweeper 1.0";
     static final String OUTSIDE_GRID = "Ignore mouse outside grid";
     private static final Color COLOR_CELL_OPEN = Color.LIGHT_GRAY;
@@ -201,19 +172,17 @@ public class Minesweeper extends JPanel implements ActionListener {
     // Opens cells (maybe cluster). Check for loser
     //
     private void onClickLeft(int index) {
+        TileData field = fields[index];
         // X or ? protects cell against accidental clicks
-        if( "X".equals(fields[index].label) ||
-            "?".equals(fields[index].label) ){
-            return;
-        }
-
-        if (fields[index].hasMine) {
-            userLost();
-        } else {
-            if (fields[index].detectedMines == 0) {
-                openCluster(index);
+        if(field.isLive()){
+            if (field.hasMine) {
+                userLost();                             // game over
             } else {
-                fields[index].open(); //also sets label
+                if (field.detectedMines == 0) {
+                    openCluster(index);
+                } else {
+                    field.open(); //also sets label
+                }
             }
         }
     }
@@ -221,26 +190,27 @@ public class Minesweeper extends JPanel implements ActionListener {
     // Cycle unopened cell label "" -> X -> ? -> "" (and check for winner)
     //
     private void onClickRight(int index) {
-        if (fields[index].isOpened || isGameOver )
+        final TileData field = fields[index];
+        if (field.isOpened || isGameOver )
             return;
 
-        switch (fields[index].label) {
-            case "":
-                fields[index].label = "X";
-                if (fields[index].hasMine) {
+        switch (field.getLabel()) {
+            case nil:
+                field.setLabel( TileLabel.marked );
+                if (field.hasMine) {
                     if (++countMarked == mineAmount) {
-                        userWon();
+                        userWon();                      // game over
                     }
                 }
                 break;
-            case "X":
-                fields[index].label = "?";
-                if (fields[index].hasMine) {
-                    countMarked--;
+            case marked:
+                field.setLabel( TileLabel.maybe );
+                if (field.hasMine) {
+                    --countMarked;
                 }
                 break;
-            case "?":
-                fields[index].label = "";
+            case maybe:
+                field.setLabel(TileLabel.nil);
                 break;
         }
     }
@@ -276,10 +246,10 @@ public class Minesweeper extends JPanel implements ActionListener {
         for (TileData field : fields) {
             if (field.hasMine) {
                 if (reveal) {
-                    field.backupLabel = field.label;
-                    field.label = BOMB;               //temporary reveal
+                    field.backupLabel();
+                    field.setLabel(TileLabel.bomb);               //temporary reveal
                 } else {
-                    field.label = field.backupLabel;
+                    field.restoreLabel();
                 }
             }
         }
@@ -294,18 +264,13 @@ public class Minesweeper extends JPanel implements ActionListener {
 
         int option = JOptionPane.showOptionDialog(null,
             "Better luck next time!\nPlay again?",
-            "You Lost",
+            "Kaboom! You Lost",
             JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE,
             gameOverIcon,
             NewGameOption.values(),
             NewGameOption.SameAgain
         );
-
-        if(NewGameOption.values()[option] == NewGameOption.Quit){
-            System.exit(0);  // crude but okay for app with no cleanup action needed
-        }
-
-        restart(option == 0);
+        restart(NewGameOption.values()[option]);
     }
 
     private void userWon() {
@@ -317,19 +282,22 @@ public class Minesweeper extends JPanel implements ActionListener {
             NewGameOption.values(),
             NewGameOption.SameAgain
         );
-        if(NewGameOption.values()[option] == NewGameOption.Quit){
-            System.exit(0);  // crude but okay for app with no cleanup action needed
-        }
-        restart(option == 0);
+        restart(NewGameOption.values()[option]);
     }
 
-    private void restart(boolean again){
-        if ( again) {
-            newGame();
-        } else {
-            gameChooser.setVisible(true);
-            gameWindow.dispose();
-            isGameOver = false;
+    private void restart(NewGameOption option){
+        switch (option){
+            case SameAgain:
+                newGame();
+                break;
+            case Menu:
+                gameChooser.setVisible(true);
+                gameWindow.dispose();
+                isGameOver = false;
+                break;
+            case Quit:
+                System.exit(0);  // crude but okay for app with no cleanup action needed
+                break;
         }
     }
 
@@ -460,7 +428,7 @@ public class Minesweeper extends JPanel implements ActionListener {
 
     }
 
-    //TODO don't highlight X or ? cells on mouseover (cant be clicked)
+    //TODO When game lost, highlight mines player did not find
     private void drawTile(Graphics g, int yTile, int xTile) {
         int RECT_SIZE = TILE_SIZE - BORDER;
 
@@ -477,7 +445,7 @@ public class Minesweeper extends JPanel implements ActionListener {
 
             if (isGameOver) {
                 color=COLOR_CELL_GAMEOVER;
-            }else if (!field.isLocked() && new GridPoint(xTile, yTile).equals(mouseLoc)){
+            }else if (field.isLive() && new GridPoint(xTile, yTile).equals(mouseLoc)){
                 color = COLOR_CELL_HIGHLIGHT;
             }
         }
@@ -485,9 +453,9 @@ public class Minesweeper extends JPanel implements ActionListener {
         g.fillRect(topLeftCornerX, topLeftCornerY, RECT_SIZE, RECT_SIZE);
 
         // draw label on tile
-        String text = field.label;
+        String text = field.getLabel().text;
         g.setFont(new Font("Sans", Font.BOLD, 20));
-        g.setColor(BOMB.equals(text)? COLOR_CELL_HIGHLIGHT : COLOR_CELL_TEXT);
+        g.setColor(field.hasMine ? COLOR_CELL_HIGHLIGHT : COLOR_CELL_TEXT);
         g.drawString(
             text,
             topLeftCornerX + TILE_SIZE / 2 - 6,
