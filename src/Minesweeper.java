@@ -427,7 +427,6 @@ public class Minesweeper extends JPanel implements ActionListener {
 
     }
 
-    //TODO When game lost, highlight mines player did not find
     private void drawTile(Graphics g, int yTile, int xTile) {
         int RECT_SIZE = TILE_SIZE - BORDER;
 
