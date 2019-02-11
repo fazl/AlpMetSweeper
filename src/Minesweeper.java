@@ -6,27 +6,27 @@ import java.util.*;
 class TileData {
     boolean isOpened = false;
     boolean hasMine = false;
-    private TileLabel label = TileLabel.nil;
-    private TileLabel backupLabel = TileLabel.nil;
+    private TileState state = TileState.nil;
+    private TileState backupLabel = TileState.nil;
 
-    TileLabel getLabel() { return label; }
-    void setLabel(TileLabel label) { this.label = label; }
+    TileState getState() { return state; }
+    void setState(TileState state) { this.state = state; }
 
     int detectedMines = 0;
 
-    boolean isLive(){
-        return label != TileLabel.marked && label != TileLabel.maybe;
+    boolean canReact(){
+        return state != TileState.marked && state != TileState.maybe;
     }
 
     void open() {
         if(!isOpened) {
             isOpened = true;
-            label = TileLabel.values()[detectedMines];
+            state = TileState.values()[detectedMines];
         }
     }
 
-    void backupLabel() { backupLabel = label;}
-    void restoreLabel() { label = backupLabel;}
+    void backupLabel() { backupLabel = state;}
+    void restoreLabel() { state = backupLabel;}
 }
 
 class GridPoint extends Point {
@@ -80,14 +80,14 @@ public class Minesweeper extends JPanel implements ActionListener {
     private static final ImageIcon winnerIcon = new ImageIcon(Minesweeper.class.getResource("/youwon.gif"));
 
 
-    private static final String GAME_NAME = "Minesweeper 1.0";
+    private static final String GAME_NAME = "Minesweeper 2.0";
     static final String OUTSIDE_GRID = "Ignore mouse outside grid";
     private static final Color COLOR_CELL_OPEN = Color.LIGHT_GRAY;
     private static final Color COLOR_CELL_HIGHLIGHT = Color.ORANGE;
     private static final Color COLOR_CELL_GAMEOVER = Color.DARK_GRAY;
     private static final Color COLOR_CELL_UNOPENED = Color.GRAY;
     private static final Color COLOR_CELL_TEXT = Color.BLUE;
-    static Difficulty selectedDifficulty = Difficulty.Medium;
+    static Difficulty selectedDifficulty = Difficulty.Fun;
     private static JFrame gameWindow = null;
     private final int TILE_SIZE = 45;
     private final int GRID_BASE = 2;
@@ -104,8 +104,8 @@ public class Minesweeper extends JPanel implements ActionListener {
     private boolean showMines =false;
 
     private Minesweeper() {
-        addMouseListener(new MouseClickAdapter(this));
-        addMouseMotionListener(new NewMouseMotionAdapter(this));
+        addMouseListener(new ClickAdapter(this));
+        addMouseMotionListener(new MotionAdapter(this));
 
         testingAid();
 
@@ -174,7 +174,7 @@ public class Minesweeper extends JPanel implements ActionListener {
     private void onClickLeft(int index) {
         TileData field = fields[index];
         // X or ? protects cell against accidental clicks
-        if(field.isLive()){
+        if(field.canReact()){
             if (field.hasMine) {
                 userLost();                             // game over
             } else {
@@ -194,9 +194,9 @@ public class Minesweeper extends JPanel implements ActionListener {
         if (field.isOpened || isGameOver )
             return;
 
-        switch (field.getLabel()) {
+        switch (field.getState()) {
             case nil:
-                field.setLabel( TileLabel.marked );
+                field.setState( TileState.marked );
                 if (field.hasMine) {
                     if (++countMarked == mineAmount) {
                         userWon();                      // game over
@@ -204,13 +204,13 @@ public class Minesweeper extends JPanel implements ActionListener {
                 }
                 break;
             case marked:
-                field.setLabel( TileLabel.maybe );
+                field.setState( TileState.maybe );
                 if (field.hasMine) {
                     --countMarked;
                 }
                 break;
             case maybe:
-                field.setLabel(TileLabel.nil);
+                field.setState(TileState.nil);
                 break;
         }
     }
@@ -240,19 +240,22 @@ public class Minesweeper extends JPanel implements ActionListener {
     }
 
     // Only for testing, honest !!
-    private void revealBombs(boolean reveal){
-        System.out.printf("Entered revealBombs(%b)\n", reveal);
-        showMines = reveal;
+    private void showMines(boolean show){
+        System.out.printf("Entered showMines(%b)\n", show);
+        // if there were huge nr mines could be more performant to
+        // do the if() outside the for ie have two version of for
+        // but maybe JVM is clever enough to optimise it anyhow.
         for (TileData field : fields) {
             if (field.hasMine) {
-                if (reveal) {
+                if (show) {
                     field.backupLabel();
-                    field.setLabel(TileLabel.bomb);               //temporary reveal
+                    field.setState(TileState.bomb);               //temporary reveal
                 } else {
                     field.restoreLabel();
                 }
             }
         }
+        showMines = show;
         repaint();
     }
 
@@ -260,17 +263,17 @@ public class Minesweeper extends JPanel implements ActionListener {
 
         isGameOver = true;
 
-        revealBombs(true);        // Uncover remaining bombs
+        showMines(true);        // Uncover remaining bombs
 
         int option = JOptionPane.showOptionDialog(null,
             "Better luck next time!\nPlay again?",
             "Kaboom! You Lost",
             JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE,
             gameOverIcon,
-            NewGameOption.values(),
-            NewGameOption.SameAgain
+            GameOption.values(),
+            GameOption.SameAgain
         );
-        restart(NewGameOption.values()[option]);
+        restart(GameOption.values()[option]);
     }
 
     private void userWon() {
@@ -279,13 +282,13 @@ public class Minesweeper extends JPanel implements ActionListener {
             "You Won", //title
             JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE,
             winnerIcon,
-            NewGameOption.values(),
-            NewGameOption.SameAgain
+            GameOption.values(),
+            GameOption.SameAgain
         );
-        restart(NewGameOption.values()[option]);
+        restart(GameOption.values()[option]);
     }
 
-    private void restart(NewGameOption option){
+    private void restart(GameOption option){
         switch (option){
             case SameAgain:
                 newGame();
@@ -347,22 +350,6 @@ public class Minesweeper extends JPanel implements ActionListener {
         final int origMines = nMines;
 
         Random rand = new Random();
-
-//        // Takes about 800 iters to lay 90 mines
-//        int attempts = 0;
-//        for (int i = 0; i < N; i++) {
-//            ++attempts;
-//            if (mineField[i].isEmpty() && rand.nextInt(8) < 1) {
-//                mineField[i] = BOMB;
-//                if (--nMines == 0) {
-//                    System.out.printf("Success: %d mines laid in %d iterations\n", origMines, attempts);
-//                    break;
-//                }
-//            }
-//            if (nMines != 0 && i == (gridSize * gridSize) - 1) {
-//                i = 0;
-//            }
-//        }
 
         // Takes about 100 iters to lay 90 mines
         int col, row, index;
@@ -445,7 +432,8 @@ public class Minesweeper extends JPanel implements ActionListener {
 
             if (isGameOver) {
                 color=COLOR_CELL_GAMEOVER;
-            }else if (field.isLive() && new GridPoint(xTile, yTile).equals(mouseLoc)){
+            }else if (field.canReact() &&
+                      new GridPoint(xTile, yTile).equals(mouseLoc)){
                 color = COLOR_CELL_HIGHLIGHT;
             }
         }
@@ -453,9 +441,9 @@ public class Minesweeper extends JPanel implements ActionListener {
         g.fillRect(topLeftCornerX, topLeftCornerY, RECT_SIZE, RECT_SIZE);
 
         // draw label on tile
-        String text = field.getLabel().text;
+        String text = field.getState().text;
         g.setFont(new Font("Sans", Font.BOLD, 20));
-        g.setColor(field.hasMine ? COLOR_CELL_HIGHLIGHT : COLOR_CELL_TEXT);
+        g.setColor(text.equals(TileState.bomb.text) ? COLOR_CELL_HIGHLIGHT : COLOR_CELL_TEXT);
         g.drawString(
             text,
             topLeftCornerX + TILE_SIZE / 2 - 6,
@@ -467,7 +455,7 @@ public class Minesweeper extends JPanel implements ActionListener {
         addKeyListener(new KeyListener() {
             public void keyTyped(KeyEvent e) {
                 if ("rR".contains(""+e.getKeyChar())){
-                    revealBombs(!showMines);
+                    showMines(!showMines);
                 }
             }
             public void keyPressed(KeyEvent e) { }
@@ -476,46 +464,4 @@ public class Minesweeper extends JPanel implements ActionListener {
     }
 
 }
-
-class MouseClickAdapter extends MouseAdapter {
-    private Minesweeper game;
-
-    MouseClickAdapter(Minesweeper p) {
-        game = p;
-    }
-
-    public void mouseClicked(MouseEvent e) {
-        try {
-            game.isLeftMouse = e.getButton() == 1;
-            game.onClick(game.isLeftMouse, e.getX(), e.getY());
-        } catch (RuntimeException exc) {
-            if (!exc.getMessage().startsWith("Ignor")) {
-                throw exc;
-            }
-        }
-    }
-}
-
-class NewMouseMotionAdapter extends MouseMotionAdapter {
-    private Minesweeper game;
-
-    NewMouseMotionAdapter(Minesweeper g) {
-        game = g;
-    }
-
-    @Override
-    public void mouseMoved(MouseEvent e) {
-        try {
-            game.mouseLoc = game.mouse2GridCoords(e.getX(), e.getY());
-            game.repaint();
-        } catch (Exception a) {
-            if(!a.getMessage().equals(Minesweeper.OUTSIDE_GRID)) {
-                a.printStackTrace();
-            }
-        }
-        super.mouseMoved(e);
-    }
-}
-
-
 

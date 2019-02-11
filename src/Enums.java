@@ -1,11 +1,13 @@
-enum NewGameOption {SameAgain, Menu, Quit }
+enum GameOption {SameAgain, Menu, Quit }
 
 // TODO ??? can we drop one of nil & zero ???
 // TODO ??? is the extra safety worth the extra typing ???
-enum TileLabel{
+enum TileState {
     zero(" "), one("1"), two("2"), three("3"), four("4"), five("5"), six("6"), seven("7"), eight("8"),
     nil(""), bomb("*"), marked("X"), maybe("?");
-    TileLabel(String s){text=s;}
+    TileState(String s){text=s;}
+
+    //CAREFUL: text (e.g. "*") vs toString() (eg "bomb")
     String text;
 }
 
