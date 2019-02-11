@@ -19,15 +19,6 @@ enum Difficulty {
         this.size = size;
         mineCount = count;
     }
-//    public static final String[] names=new String[values().length];
-//    public static final String[] strings=new String[values().length];
-//    static {
-//        Difficulty[] values=values();
-//        for(int i=0;i<values.length;i++){
-//            names[i]=values[i].name();
-//            strings[i]=values[i].toString();
-//        }
-//    }
 
     @Override
     public String toString() {
@@ -45,11 +36,17 @@ enum Difficulty {
     }
 }
 class TileData {
+    private static final String MARKED = "X";
+    private static final String MAYBE = "?";
     boolean isOpened = false;
     boolean hasMine = false;
     String label = "";
     String backupLabel = "";
     int detectedMines = 0;
+
+    boolean isLocked(){
+        return label.equals(MARKED) || label.equals(MAYBE);
+    }
 
     void open() {
         if(!isOpened) {
@@ -57,6 +54,14 @@ class TileData {
             label = detectedMines == 0 ? " " : "" + detectedMines;
         }
     }
+}
+
+class GridPoint extends Point {
+    GridPoint(int x, int y){ super(x,y); }
+    GridPoint(){super();}
+
+    @Override
+    public String toString() { return String.format("GridPoint(x=%d,y=%d)", x, y); }
 }
 
 class GameChooser extends JFrame {
@@ -115,7 +120,7 @@ public class Minesweeper extends JPanel implements ActionListener {
     private static JFrame gameWindow = null;
     private final int TILE_SIZE = 45;
     private final int GRID_BASE = 2;
-    Point mouseLoc=null;
+    GridPoint mouseLoc=null;
     boolean isLeftMouse;
     private int gridSize = 15;
     private int BORDER = 2;
@@ -160,7 +165,7 @@ public class Minesweeper extends JPanel implements ActionListener {
         return new Dimension(d, d);
     }
 
-    Point mouse2GridCoords(double xMouse, double yMouse) {
+    GridPoint mouse2GridCoords(double xMouse, double yMouse) {
         if (xMouse < GRID_BASE || gridSize * TILE_SIZE + GRID_BASE - BORDER < xMouse ||
             yMouse < GRID_BASE || gridSize * TILE_SIZE + GRID_BASE - BORDER < yMouse) {
             throw new RuntimeException(OUTSIDE_GRID);
@@ -170,7 +175,7 @@ public class Minesweeper extends JPanel implements ActionListener {
         int gridX = (int) ((xMouse - GRID_BASE) / TILE_SIZE);
         int gridY = (int) ((yMouse - GRID_BASE) / TILE_SIZE);
 
-        return new Point(gridX, gridY);
+        return new GridPoint(gridX, gridY);
     }
 
     private int coordsToIndex(int column, int row) {
@@ -178,7 +183,7 @@ public class Minesweeper extends JPanel implements ActionListener {
         if(row<0    || gridSize<=row) throw new IllegalArgumentException("Off grid row="+row);
         return column + gridSize * row;
     }
-    private int coordsToIndex(Point posColRow){
+    private int coordsToIndex(GridPoint posColRow){
         return coordsToIndex(posColRow.x, posColRow.y);
     }
 
@@ -329,22 +334,22 @@ public class Minesweeper extends JPanel implements ActionListener {
     }
 
 
-    private Point index2Coords(int index) {
+    private GridPoint index2Coords(int index) {
         if(index<0 || gridSize*gridSize<=index){
             throw new IllegalArgumentException("Index off grid: " + index);
         }
-        return new Point(index % gridSize, index / gridSize);
+        return new GridPoint(index % gridSize, index / gridSize);
     }
 
 
 
     private Set<Integer> getNeighbourIdxs(int index ){
-        Point p = index2Coords(index);
+        GridPoint p = index2Coords(index);
         Set<Integer> neighbours = new TreeSet<>(); //auto sorts
         for (int dx = -1; dx<2; ++dx){
             for (int dy = -1; dy<2; ++dy){
                 try {
-                    Point neighbour = new Point(p.x + dx, p.y + dy); //off grid -> throws
+                    GridPoint neighbour = new GridPoint(p.x + dx, p.y + dy); //off grid -> throws
                     if (!neighbour.equals(p)) {  // neighbour, not self
                         int neighbourIndex = coordsToIndex(neighbour);
                         if(neighbours.contains(neighbourIndex)){
@@ -466,13 +471,13 @@ public class Minesweeper extends JPanel implements ActionListener {
         Color color=COLOR_CELL_OPEN;
 
         // shading unopened cells
-        int index = coordsToIndex(xTile, yTile);
-        if (!fields[index].isOpened) {
+        TileData field = fields[coordsToIndex(xTile, yTile)];
+        if (!field.isOpened) {
             color = COLOR_CELL_UNOPENED;
 
             if (isGameOver) {
                 color=COLOR_CELL_GAMEOVER;
-            }else if (new Point(xTile, yTile).equals(mouseLoc)){
+            }else if (!field.isLocked() && new GridPoint(xTile, yTile).equals(mouseLoc)){
                 color = COLOR_CELL_HIGHLIGHT;
             }
         }
@@ -480,7 +485,7 @@ public class Minesweeper extends JPanel implements ActionListener {
         g.fillRect(topLeftCornerX, topLeftCornerY, RECT_SIZE, RECT_SIZE);
 
         // draw label on tile
-        String text = fields[index].label;
+        String text = field.label;
         g.setFont(new Font("Sans", Font.BOLD, 20));
         g.setColor(BOMB.equals(text)? COLOR_CELL_HIGHLIGHT : COLOR_CELL_TEXT);
         g.drawString(
